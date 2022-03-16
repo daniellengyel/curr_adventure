@@ -2,9 +2,7 @@ setup.py
 curr_adventure/Barriers.py
 curr_adventure/Functions.py
 curr_adventure/IPMOptimizers.py
-curr_adventure/UnconstrainedOptimizers.py
 curr_adventure/__init__.py
-curr_adventure/derivative_free_estimation.py
 curr_adventure/main.py
 curr_adventure/save_load.py
 curr_adventure/utils.py
@@ -13,7 +11,8 @@ curr_adventure.egg-info/SOURCES.txt
 curr_adventure.egg-info/dependency_links.txt
 curr_adventure.egg-info/top_level.txt
 curr_adventure/derivative_estimation/__init__.py
-curr_adventure/derivative_estimation/grid_sampling.py
+curr_adventure/derivative_estimation/grid_generation.py
 curr_adventure/derivative_estimation/one_E_zero.py
 curr_adventure/derivative_estimation/two_E_one.py
 curr_adventure/derivative_estimation/two_E_zero.py
+curr_adventure/derivative_estimation/utils.py

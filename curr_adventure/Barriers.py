@@ -8,6 +8,31 @@ from functools import partial
 from jax import jit
 import jax.random as jrandom
 
+def get_barrier(config, jrandom_key):
+    prob_config = config["Optimization_Problem"]
+    if prob_config["name"] == "Linear":
+        num_barriers = prob_config["num_barriers"]
+        dim = config["dim"]
+
+        jrandom_key, subkey = jrandom.split(jrandom_key)
+        dirs = jrandom.normal(subkey, shape=(num_barriers, dim)) # sample gaussian and normalize 
+        ws = dirs/np.linalg.norm(dirs, axis=1).reshape(-1, 1)
+
+        jrandom_key, subkey = jrandom.split(jrandom_key)
+        A = jrandom.normal(subkey, shape=(dim, dim))
+        U, _, _ = jnp.linalg.svd(A) # some rotation matrix
+        S = jnp.diag(jnp.linspace(0.1, 5, dim)) # the axis scaling
+        ws = ws.dot(S.dot(U.T))
+        bs = np.ones(num_barriers)
+        noise_std = config["Optimization_Problem"]["barrier_noise"]
+        print(repr(ws))
+        if noise_std is None:
+            noise_std = 0
+        B = LogPolytopeBarrier(ws, bs, noise_std) 
+    else: 
+        raise ValueError("Does not support given barrier type {} with domain {}".format(config["optimization_meta"]["barrier_type"], config["domain_name"]))
+    return B
+
 class LogPolytopeBarrier:
 
     def __init__(self, ws, bs, noise_std=0):
@@ -49,11 +74,9 @@ class LogPolytopeBarrier:
         return ret
 
     # @partial(jit, static_argnums=(0,))
-    def f1(self, xs, jrandom_key=None):
+    def f1(self, xs):
         dists, signs = self._get_dists(xs)
         grads = (1/dists * signs).dot((-self.ws / jnp.linalg.norm(self.ws, axis=1).T.reshape(-1, 1)))
-        if jrandom_key is not None:
-            grads = grads + jrandom.normal(key=jrandom_key, shape=grads.shape) * 0.2**0.5
         return grads
 
     # @partial(jit, static_argnums=(0,))
@@ -64,7 +87,6 @@ class LogPolytopeBarrier:
         for i in range(len(xs)):
             hess.append(jnp.dot(normalized_ws.T, 1/(dists[i].reshape(-1, 1))**2 * normalized_ws))
 
-        
         hess = jnp.array(hess)
         return hess 
     
@@ -75,3 +97,8 @@ class LogPolytopeBarrier:
 
 
         
+
+class EntropicBarrier():
+
+    def __init__(self):
+        pass

@@ -1,0 +1,244 @@
+\begin{document}
+
+
+\section{Choosing the ideal sampling set: Error Analysis}
+
+
+\subsection{Inexact Function Evaluations}
+As mentioned in the introduction, if there was no error in the function evaluations, e.g. random noise or machine imprecision, then we could simply use finite differences and obtain an arbitrary small error. 
+
+There are various ways by which to model noise in a function. For this paper, we consider additive noise. Specifically, we let $f : \mathbb{R}^d \rightarrow \mathbb{R}$ be a smooth function and assume that we have only access to
+\begin{align}
+    \tilde{f}(x) = f(x) + \epsilon(x)
+\end{align}
+where $\epsilon(x) : \mathbb{R}^d \rightarrow \mathbb{R}$ is some, possibly random, function which models the noise. 
+
+
+\begin{lemma}[Mean Squared Error]\label{lma:mse_noise}
+Let $X \in \mathbb{R}^{d \times N}$ be an arbitrary matrix with full row rank. Assume that $\epsilon(x)$ is a random variable with $\mathbb{E}[\epsilon(x)] = 0$,  $\mathbb{V}[\epsilon(x)] = \sigma(x)^2 < \infty$ for all $x \in \mathbb{R}^d$, and $Cov(\epsilon(x), \epsilon(x')) = 0$ for all $x \neq x' \in \mathbb{R}^d$. 
+Then, we can take the expectation with respect to the noise $\epsilon$ of the mean squared error at $x_0$ and obtain
+\begin{align}
+    &\mathbb{E}_{\epsilon}[\Vert \nabla_{S_{X, x_0}} \tilde{f}(x_0) - \nabla f(x_0) \Vert_2^2] \\
+    &= \Vert \nabla_{S_{X, x_0}} f(x_0) - \nabla f(x_0) \Vert_2^2 
+    + \sum_{i = 1}^N \sigma(x_i)^2 \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2.
+\end{align}
+\end{lemma}
+
+\begin{proof}\label{prf:mse_noise}
+
+First, we add and subtract the mean of the simplex gradient $\mathbb{E}[\nabla_S \tilde{f} (x_0)]$ and expand
+
+\begin{align}
+    &\mathbb{E}[\Vert \nabla_{S} \tilde{f}(x_0) - \mathbb{E}[ \nabla_{S} \tilde{f}(x_0)] + \mathbb{E}[ \nabla_{S} \tilde{f}(x_0) ] - \nabla f(x_0) \Vert_2^2] \\
+    &= \mathbb{E}[\Vert \nabla_{S} \tilde{f}(x_0) - \mathbb{E}[ \nabla_{S} \tilde{f}(x_0)]  \Vert_2^2] \\
+    &+ \Vert \mathbb{E}[\nabla_{S} \tilde{f}(x_0) ] - \nabla f(x_0) \Vert_2^2 && \text{Due to expectation of a constant.}\\
+    &+ \mathbb{E}[\Big( \nabla_{S} \tilde{f}(x_0) - \mathbb{E}[ \nabla_{S} \tilde{f}(x_0)] \Big)^T \Big( \mathbb{E}[ \nabla_{S} \tilde{f}(x_0) ] - \nabla f(x_0)\Big) ] \\
+\end{align}
+
+The next step follows from noticing $\mathbb{E}[\nabla_{S} \tilde{f}(x_0)] = \mathbb{E}[\nabla_{S} f(x_0)] + \mathbb{E}[\nabla_{S} \epsilon(x_0)]$ by linearity of the simplex gradient. Since the noise is mean zero and $\nabla_{S} f(x_0)$ is deterministic we have $\mathbb{E}[\nabla_{S} \tilde{f}(x_0)] = \nabla_S f(x_0)$. 
+
+\begin{align}
+    \rightarrow \quad &\mathbb{E}[\Vert \nabla_{S} \tilde{f}(x_0) - \nabla_S f(x_0)  \Vert_2^2] \\
+    &+ \Vert \nabla_S f(x_0) - \nabla f(x_0) \Vert_2^2 \\
+    &+ \mathbb{E}[\Big( \nabla_{S} \tilde{f}(x_0) - \nabla_S f(x_0) \Big)^T \Big( \nabla_S f(x_0) - \nabla f(x_0)\Big) ].
+\end{align}
+
+We now proceed term by term. For the first term, by the linearity of the simplex gradient we have
+\begin{align}
+    &\mathbb{E}[\Vert \nabla_{S} \tilde{f}(x_0) - \nabla_S f(x_0)  \Vert_2^2] \\
+    &= \mathbb{E}[\Vert\nabla_S f(x_0) + \nabla_S \epsilon(x_0) - \nabla_S f(x_0) \Vert_2^2 ] \\
+    &= \mathbb{E}[\Vert \nabla_S \epsilon(x_0) \Vert_2^2 ].
+\end{align}
+We can now compute the expectation of the simplex gradient of the noise
+\begin{align}
+    &\mathbb{E}[\Vert \nabla_S \epsilon(x_0) \Vert_2^2 ] \\
+    &=\sum_{i = 1}^N \mathbb{E}[\Vert (SS^T)^{-1} (x_i - x_0) (\epsilon(x_i) - \epsilon(x_0)) \Vert_2^2] \\
+    &+ \sum_{j \neq k}^N \mathbb{E}[\Big( (SS^T)^{-1} (x_j - x_0) (\epsilon(x_j) - \epsilon(x_0)) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) (\epsilon(x_k) - \epsilon(x_0)) \Big)].
+\end{align}
+For the first term we immediately have for each term in that sum that $\mathbb{E}[\Vert (SS^T)^{-1} (x_i - x_0) (\epsilon(x_i) - \epsilon(x_0))\Vert_2^2] = \mathbb{E}[ (\epsilon(x_i) - \epsilon(x_0))^2] \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2 $. Expanding the expectation we have $\mathbb{E}[ (\epsilon(x_i) - \epsilon(x_0))^2] = \mathbb{E}[\epsilon(x_i)^2] + \mathbb{E}[\epsilon(x_0)^2] - 2 \mathbb{E}[\epsilon(x_i)\epsilon(x_0)]$. Due to independence of $\epsilon(x_i)$ and $\epsilon(x_0)$ we have for the first term $\sum_{i = 1}^N (\sigma(x_i)^2 + \sigma(x_0)^2) \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2$.
+
+For the second term we have
+\begin{align}
+    &\mathbb{E}[\Big( (SS^T)^{-1} (x_j - x_0) (\epsilon(x_j) - \epsilon(x_0)) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) (\epsilon(x_k) - \epsilon(x_0)) \Big)] \\
+    &= \Big(\mathbb{E}[\epsilon(x_j) \epsilon(x_k) ] - \mathbb{E}[\epsilon(x_j) \epsilon(x_0) ] - \mathbb{E}[\epsilon(x_0) \epsilon(x_k) ] + \mathbb{E}[\epsilon(x_0) \epsilon(x_0) ] \Big) \\
+    &\quad \cdot \Big( (SS^T)^{-1} (x_j - x_0) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) \Big)\\
+    &= \sigma(x_0)^2 \Big( (SS^T)^{-1} (x_j - x_0) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) \Big). 
+\end{align}
+
+Putting the two together we have
+\begin{align}
+    &\sum_{i = 1}^N (\sigma(x_i)^2 + \sigma(x_0)^2) \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2 \\
+    &+ \sum_{j \neq k}^N \sigma(x_0)^2 \Big( (SS^T)^{-1} (x_j - x_0) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) \Big) \\
+    &= \sum_{i = 1}^N \sigma(x_i)^2 \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2 \\
+    &+ \sigma(x_0)^2 \sum_{j, k}^N \Big( (SS^T)^{-1} (x_j - x_0) \Big)^T \Big((SS^T)^{-1} (x_k - x_0) \Big).
+\end{align}
+
+So shorten the notation we write $\bar{S} = \frac{1}{N} \sum_{i = 1} (x_i - x_0)$. Hence
+\begin{align}
+\sum_{i = 1}^N \sigma(x_i)^2 \Vert (SS^T)^{-1} (x_i - x_0) \Vert_2^2 \\
+    &+ \sigma(x_0)^2 N^2 \bar{S}^T (SS^T)^{-2} \bar{S} .
+\end{align}
+
+
+
+
+
+
+\end{proof}
+
+Hence, 1) only care about bias. 2) why reasonable assumption even with deterministic noise. 
+
+I want a plot which plots the true error we incur and below the error we would expect with the error terms that we know of (or have somewhat exact access to). THen we increase the sampling set diameter to see when the error takes over. Simple enough I think. Should justify that we only want the lowest order error for later. Also, with that we visualize how much error we can get rid of by getting rid of the lowest order error essentially. We can also plot the noise error on the side and see.   
+
+
+\subsection{Uncentered Simplex Gradient}
+
+\begin{lemma}
+Assume that $f : \mathcal{K} \rightarrow \mathbb{R}$ with $\mathcal{K} \in \mathbb{R}^d$ is a smooth function. For $x_0$ let the sampling set $X$ be within $\mathcal{K}$ and the associated sampling set $S_{X, x_0}$ be full column rank. On the convex hull of the sampling set $X$ we assume that the second derivatives are upper bounded by $B \in \mathbb{R}$ and the third derivatives by $C$. The simplex gradient then has error 
+
+\begin{align}
+    &\Vert\nabla_S f(x_0)  - \nabla f(x_0) \Vert_2 \\
+    &\leq \frac{1}{2} B d \frac{1}{\lambda_{min}^2} R(S)^{3}
+\end{align}
+
+or more accurately
+
+\begin{align}
+    &\Vert\nabla_S f(x_0)  - \nabla f(x_0) \Vert_2 \\
+    &\leq \frac{1}{2} \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) (x_i - x_0)^T \nabla^2 f(x_0) (x_i - x_0) \Vert_2 \\
+    &\quad + \frac{1}{6} C d^{3/2} \frac{1}{\lambda_{min}^2} R(S)^{4}
+\end{align}
+
+with $\lambda_{min} = \lambda_{min}(\frac{1}{N} SS^T)$ (the smallest eigenvalue of the sample covariance matrix) and $R(S) = \max_{i} \Vert x_i - x_0 \Vert_2$. 
+
+\end{lemma}
+
+
+
+\subsubsection{Example: Quadratic}
+\begin{exmp}
+Let $f(x) = x^t A x + b^t x + c$ for $A \in \mathbb{R}^{d \times d}$, $b \in \mathbb{R}^d$ and $c \in \mathbb{R}$. Then we have
+\begin{align}
+    &\Vert \nabla_{S_{X, x_0}} f(x_0) - \nabla f(x_0) \Vert_2^2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N (f(x_i) - f(x_0)) (x_i - x_0) - \nabla f(x_0) \Vert_2^2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) (x_i - x_0)^T \nabla f(x_0) + \frac{1}{2} (x_i - x_0) (x_i - x_0)^T \nabla^2 f(x_0) (x_i - x_0) - \nabla f(x_0) \Vert_2^2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) (x_i - x_0)^T A (x_i - x_0) \Vert_2^2.
+\end{align}
+
+
+
+\end{exmp}
+
+\subsubsection{Example: Ackley}
+
+
+\subsection{Symmetric Simplex Gradient}
+If there is no cost to evaluating a function many times, then we can easily increase the rate of convergence. 
+
+\begin{lemma}
+Let $S$ be such that 
+\end{lemma}
+
+\subsubsection{Example: Cubic}
+\subsubsection{Example: Ackley}
+
+
+
+
+
+
+\subsection{Technical Lemmas and Proofs}
+
+\begin{proof}
+\begin{align}
+    &\Vert \nabla_{S_{X, x_0}} f(x_0) - \nabla f(x_0) \Vert_2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N (f(x_i) - f(x_0)) (x_i - x_0) - \nabla f(x_0) \Vert_2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) (x_i - x_0)^T \nabla f(x_0) + \frac{1}{2} (x_i - x_0) (x_i - x_0)^T \nabla^2 f(x_0) (x_i - x_0)  \\
+    &\quad  + \frac{1}{6} (x_i - x_0) D^3 f(\xi_i).(x_i - x_0)^{\otimes 3} - \nabla f(x_0) \Vert_2 \\
+    &= \Vert (SS^T)^{-1} \sum_{i = 1}^N \frac{1}{2} (x_i - x_0) (x_i - x_0)^T \nabla^2 f(x_0) (x_i - x_0) + \frac{1}{6} (x_i - x_0) D^3 f(\xi_i).(x_i - x_0)^{\otimes 3} \Vert_2 \\
+    &\leq \frac{1}{2} \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) (x_i - x_0)^T \nabla^2 f(x_0) (x_i - x_0) \Vert_2 \\
+    &\quad + \frac{1}{6} \Vert (SS^T)^{-1} \sum_{i = 1}^N (x_i - x_0) D^3 f(\xi_i).(x_i - x_0)^{\otimes 3} \Vert_2 \\
+\end{align}
+\end{proof}
+
+
+\begin{lemma}
+\begin{align}
+    \sum_{i = 1}^d \vert a_i \vert \leq \sqrt{d} \Vert \mathbf{a} \Vert_2.
+\end{align}
+\end{lemma}
+\begin{proof}
+\begin{align}
+    &\sum_{i = 1}^d \vert a_i \vert \\
+    &= \langle \mathbf{1}, \mathbf{a} \rangle \\
+    &\leq \Vert \mathbf{1} \Vert_2 \Vert \mathbf{a} \Vert_2 \\
+    &= \sqrt{d} \Vert \mathbf{a} \Vert_2
+\end{align}
+\end{proof}
+
+\begin{lemma}
+\begin{align}
+    \Vert (SS^T)^{-1} 
+    \sum_{i = 1}^N (x_i - x_0) D^k f(\xi_i).(x_i - x_0)^{\otimes k} \Vert_2
+\end{align}
+\end{lemma}
+
+\begin{proof}
+\begin{align}
+    &\Vert (SS^T)^{-1} 
+    \sum_{i = 1}^N (x_i - x_0) D^k f(\xi_i).(x_i - x_0)^{\otimes k} \Vert_2 \\
+    &\leq \sum_{i = 1}^N \Vert (SS^T)^{-1}
+     (x_i - x_0)\Vert_2 \Big(\sum_{\alpha}^d \vert (\nabla^k f(\xi_i))_{\alpha} (x_i - x_0)^\alpha \vert \Big) \\
+    &\leq \sum_{i = 1}^N \Vert (SS^T)^{-1}
+     (x_i - x_0)\Vert_2 C \Big(\sum_{j = 1}^d \vert (x_i - x_0)_j\vert \Big)^k \\
+    &\leq N C d^{k/2} \frac{1}{\lambda_{min}^2} R(S)^{k + 1}.
+\end{align}
+\end{proof}
+
+\begin{lemma}
+Let $X$ be such that $\mathbb{E}[X]$ and $C$ be deterministic
+\begin{align}
+    \mathbb{E}[\Vert X - C \Vert_2^2] &= \mathbb{E}[\Vert X - \mathbb{E}[X] \Vert_2^2] + \Vert \mathbb{E}[X] - C \Vert_2^2.
+\end{align}
+\end{lemma}
+
+% \begin{align}
+    
+% \end{align}
+
+
+
+
+\begin{proof}
+First note that 
+\begin{align}
+    &\Vert (SS^T)^{-1} \sum_{i = 1}^N s_i s_i^T D s_i \Vert_2^2 \\
+    &= \sum_{i, j}^N  s_i^T D s_i s_j^T D s_j  \langle  (SS^T)^{-1} s_i, (SS^T)^{-1} s_j \rangle \\
+    &= \sum_{i = 1}^N (s_i^T D s_i)^2 \Vert (SS^T)^{-1} s_i \Vert_2^2.
+\end{align}
+
+Hence we have 
+\begin{align}
+    &\sum_{i = 1}^N (s_i^T D s_i)^2 \Vert (SS^T)^{-1} s_i \Vert_2^2 + \sum_{i = 1}^N \sigma^2 \Vert (SS^T)^{-1} s_i \Vert_2^2 \\
+    &= \sum_{i = 1}^N ((s_i^T D s_i)^2 + \sigma^2)  \frac{1}{\Vert s_i \Vert_2^2}
+\end{align}
+
+Let's also assume that they are axis aligned ... 
+
+Then we have 
+\begin{align}
+    &\sum_{i = 1}^N ((d_i s_i^2)^2 + \sigma^2)  \frac{1}{s_i^2} \\
+    &= \sum_{i = 1}^N d_i^2 s_i^2 + \frac{\sigma^2}{s_i^2}
+\end{align}
+
+Minimizing we get 
+\begin{align}
+    d_i^2 s_i &= \frac{\sigma^2}{s_i^3} \\
+    s_i^4 &= \frac{\sigma^2}{d_i^2} \\
+    s_i &= \sqrt{\frac{\sigma}{d_i}}
+\end{align}
+
+
+\end{proof}
+
+\end{document}

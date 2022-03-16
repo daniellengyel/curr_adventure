@@ -1,0 +1,21 @@
+Optimization_Problem:
+  barrier_noise: 0.05
+  name: Linear
+  num_barriers: 6
+  obj_direction: ones
+dim: 2
+grad_estimate_type: FD_Hess
+num_path_steps: 15
+num_total_steps: 300
+optimization_meta:
+  N: 4
+  c1: 0.001
+  c2: 0.7
+  delta: 1
+  h: 0.7
+  jrandom_key: 1
+optimization_name: BFGS
+optimization_type: IPM
+particle_init: origin
+return_full_path: true
+seed: 0
