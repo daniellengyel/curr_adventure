@@ -1,6 +1,8 @@
+from sqlite3 import adapt
 import jax.numpy as jnp 
 import jax.random as jrandom
 from jax import jit, grad, jacfwd
+import pycutest
 
 class Quadratic:
     def __init__(self, Q, b, sig=0):
@@ -53,21 +55,9 @@ class Ackley:
 
     def f1(self, X):
         """del H/del xi = -20 * -0.2 * (xi * 1/n) / sqrt(1/n sum_j xj^2) * a + 2 pi sin(2 pi xi)/n * b"""
-        # xs = X.T
-        # out_shape = xs.shape
-        # a = jnp.exp(-0.2 * jnp.sqrt(1. / len(xs) * jnp.square(jnp.linalg.norm(xs, axis=0))))
-        # b = -jnp.exp(1. / len(xs) * jnp.sum(jnp.cos(2 * jnp.pi * xs), axis=0))
-        # a_p = -0.2 * (xs * 1. / len(xs)) / jnp.sqrt(1. / len(xs) * jnp.square(jnp.linalg.norm(xs, axis=0)))
-        # b_p = -2 * jnp.pi * jnp.sin(2 * jnp.pi * xs) / len(xs)
-        # grad = jnp.nan_to_num(
-        #     -20 * a_p * a + b_p * b).reshape(out_shape)  # only when norm(x) == 0 do we have nan and we know the grad is zero there
-        # grad = grad.T
-        
-        # return grad
         return self._f1(X.reshape(1, -1))[0]
 
     def f2(self, X):
-        # return jacfwd(lambda x: self.f1(x))(X).reshape(X.shape[0], X.shape[1], X.shape[1])
         return self._f2(X.reshape(1, -1)).reshape(X.size, X.size)
 
 class Brown:
@@ -91,26 +81,53 @@ class Brown:
             return out[0]
         return out
     
-    def f1(self, X, jrandom_key=None):
-        # X2 = X**2 
-        # logX2 = jnp.log(X2)
-        # logX2 = jax.ops.index_update(logX2, X2 == 0, 0)
-        # grad = jnp.zeros(X.shape)
-        # middle_terms = (2*(X2[:, 2:] + 1))*X2[:, 1:-1]**(X2[:, 2:])*X[:, 1:-1] + 2 * X[:, 1:-1] * logX2[:, 2:] * X2[:, 2:]**(X2[:, 1:-1] + 1) \
-        #                 + (2*(X2[:, :-2] + 1))*X2[:, 1:-1]**(X2[:, :-2])*X[:, 1:-1] + 2 * X[:, 1:-1] * logX2[:, :-2]  * X2[:, :-2]**(X2[:, 1:-1] + 1)
-        # zeroth_term = (2*(X2[:, 1] + 1))*X2[:, 0]**(X2[:, 1])*X[:, 0] + 2 * X[:, 0] * logX2[:, 1] * X2[:, 1]**(X2[:, 0] + 1) 
-        # last_term = (2*(X2[:, -2] + 1))*X2[:, -1]**(X2[:, -2])*X[:, -1] + 2 * X[:, -1] * logX2[:, -2]  * X2[:, -2]**(X2[:, -1] + 1)
-        
-        # grad = jax.ops.index_update(grad, jax.ops.index[:, 1:-1], middle_terms)
-        # grad = jax.ops.index_update(grad, jax.ops.index[:, 0], zeroth_term)
-        # grad = jax.ops.index_update(grad, jax.ops.index[:, -1], last_term)
-
-        
-        # if jrandom_key is not None:
-        #     return grad + self.noise_std * jrandom.normal(jrandom_key, X.shape) 
-        # return grad 
+    def f1(self, X):
         return self._f1(X.reshape(1, -1))[0]    
 
     def f2(self, X):
-        # return jacfwd(lambda x: self.f1(x, None))(X).reshape(X.shape[0], X.shape[1], X.shape[1])
         return self._f2(X.reshape(1, -1)).reshape(X.size, X.size)
+
+
+class PyCutestWrapper:
+    def __init__(self, cutest_f, eps=0,  noise_type="gaussian"):
+        self.cutest_f = cutest_f
+        self.eps = eps
+        self.noise_type = noise_type
+
+    def f(self, X, jrandom_key=None):
+        out = self.cutest_f.obj(X)
+        if jrandom_key is not None:
+            if self.noise_type == "uniform":
+                return out + 2 * self.eps * jrandom.uniform(jrandom_key) - self.eps
+            else:
+                return out + self.eps * jrandom.normal(jrandom_key) 
+        return out
+
+    def f1(self, X):
+        return self.cutest_f.obj(X, True)[1]
+
+    def f2(self, X):
+        return self.cutest_f.hess(X)
+
+
+def PyCutestIterator(idx_iterator=None, eps=0, noise_type="gaussian"):
+    adapt_functions = ["AIRCRFTB", "ALLINITU", "ARWHEAD", "BARD", "BDQRTIC", "BIGGS3", "BIGGS5", "BIGGS6", "BOX2", "BOX3", "BRKMCC", "BROWNAL", "BROWNDEN", "CLIFF", "CRAGGLVY", "CUBE", "DENSCHND", "DENSCHNE", "DIXMAANH", "DQRTIC", "EDENSCH", "EIGENALS", "EIGENBLS", "EIGENCLS", "ENGVAL1", "EXPFIT", "FLETCBV3", "FLETCHBV", "FREUROTH", "GENROSE", "GULF", "HAIRY", "HELIX", "NCB20B", "NONDIA", "NONDQUAR", "OSBORNEA", "OSBORNEB", "PENALTY1", "PFIT1LS", "PFIT2LS", "PFIT3LS", "PFIT4LS", "QUARTC", "SINEVAL", "SINQUAD", "SISSER", "SPARSQUR", "TOINTGSS", "TQUARTIC", "TRIDIA", "WATSON", "WOODS", "ZANGWIL"]
+    adapt_function_dims = [5, 4, 100, 3, 100, 3, 5, 6, 2, 3, 2, 100, 4, 2, 
+                            100, 2, 3, 3, 90, 100, 36, 110, 110, 30, 100, 2, 100, 100, 
+                            100, 100, 3, 2, 3, 100, 100, 100, 5, 11, 100, 3, 3, 3,
+                            3, 100, 2, 100, 2, 100, 100, 100, 100, 31, 100, 2]
+
+    if idx_iterator is None:
+        idx_iterator = range(len(adapt_functions))
+    pycutest.clear_cache("CUBE")
+    for i in idx_iterator:
+        curr_prob = pycutest.import_problem(adapt_functions[i])
+        if curr_prob.n != adapt_function_dims[i]:
+            try:
+                print("Failed with Problem", adapt_functions[i])
+                curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
+            except:
+                continue
+        yield adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
+
+

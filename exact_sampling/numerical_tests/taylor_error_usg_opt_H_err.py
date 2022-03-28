@@ -5,7 +5,7 @@ import pandas as pd
 import os
 
 from Functions import Quadratic, Ackley, Brown
-from taylor_error_utils import get_errs
+from numerical_tests.taylor_error_utils import get_errs
 from optimize_USG_error import optimize_uncentered_S
 
 from scipy.stats import linregress
