@@ -1,12 +1,13 @@
 import jax.numpy as jnp
 from jax import grad, random as jrandom
 import time
+from tqdm import tqdm 
 
 from jax.config import config
 config.update("jax_enable_x64", True)
 
 class OptimizationBlueprint:
-    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps=0):
+    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps=0, verbose=False):
         self.jrandom_key = jrandom_key
 
         self.c1 = c1
@@ -22,6 +23,7 @@ class OptimizationBlueprint:
         self.verbose = True
         self.x_init = x_init
         self.dim = len(x_init)
+        self.verbose = verbose
         
 
     def run_opt(self):
@@ -33,8 +35,8 @@ class OptimizationBlueprint:
 
         vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, 0))
 
-        while self.loop_steps_remaining > 0:
-            self.loop_steps_remaining -= 1
+        for t in tqdm(range(self.loop_steps_remaining)): # self.loop_steps_remaining > 0:
+            # self.loop_steps_remaining -= 1
              
             # get search direction
             self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
@@ -45,7 +47,7 @@ class OptimizationBlueprint:
                 break
 
             if self.verbose:
-                print("Number Iterations", self.num_total_steps - self.loop_steps_remaining)
+                print("Number Iterations", t)
                 print("Num Function Calls", total_func_calls)
                 print("Obj", self.F.f(X))
                 print("Grad norm", jnp.linalg.norm(f1))
@@ -64,8 +66,9 @@ class OptimizationBlueprint:
             num_func_calls = self.post_step(X, subkey)
             total_func_calls += num_func_calls
 
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(f1))))
-
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(f1 - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))))
+            if vals_arr[-1][-1] > 1e10:
+                break
 
         self.reset()
         return X, jnp.array(vals_arr)
@@ -82,10 +85,10 @@ class OptimizationBlueprint:
 
 
 class BFGS(OptimizationBlueprint):
-    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_getter, grad_eps=0):
-        super().__init__(x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps)
-        # self.H_inv = jnp.linalg.inv(F.f2(x_init)) 
-        self.H_inv = jnp.eye(self.dim)
+    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_getter, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps, verbose)
+        self.H_inv = jnp.linalg.inv(F.f2(x_init)) 
+        # self.H_inv = jnp.eye(self.dim)
         self.X_prev = None
         self.grad_curr = None
         self.grad_getter = grad_getter
@@ -93,6 +96,7 @@ class BFGS(OptimizationBlueprint):
     def step_getter(self, X, jrandom_key):
         num_func_calls = 0
         self.X_prev = X.copy()
+        # print("pre true", jnp.linalg.eig(jnp.linalg.inv(self.F.f2(X)))[0])
         if self.grad_curr is None:
             self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key, H=jnp.linalg.inv(self.H_inv))
             # print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X)))
@@ -106,11 +110,15 @@ class BFGS(OptimizationBlueprint):
         prev_grad = self.grad_curr
 
         self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key, H=jnp.linalg.inv(self.H_inv))
-        print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
         # print(self.grad_curr)
         # print(self.F.f1(X))
+        # print("pre", jnp.linalg.eig(self.H_inv)[0])
         self.H_inv = self.BFGS_update(self.X_prev, X, prev_grad, self.grad_curr, self.H_inv) 
-        # print(self.H_inv)
+        # print("post", jnp.linalg.eig(self.H_inv)[0])
+        # print("post true", jnp.linalg.eig(jnp.linalg.inv(self.F.f2(X)))[0])
+        if self.verbose:
+            print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
+            print("H diff", jnp.linalg.norm(self.H_inv - jnp.linalg.inv(self.F.f2(X)))/jnp.linalg.norm(jnp.linalg.inv(self.F.f2(X))))
         return num_func_calls
 
     def reset(self):
@@ -124,6 +132,14 @@ class BFGS(OptimizationBlueprint):
             H = inv_hessian_approx
 
         grad_diff = (g_1 - g_0)
+        print("grad_diff", grad_diff)
+        print("g0 est", g_0)
+        print("g0 true", self.F.f1(x_0))
+
+
+        print("g1 est", g_1)
+        print("g1 true", self.F.f1(x_1))
+        print("grad true diff", self.F.f1(x_1) - self.F.f1(x_0))
         update_step = x_1 - x_0
         
         ys = jnp.inner(grad_diff, update_step)
@@ -138,8 +154,8 @@ class BFGS(OptimizationBlueprint):
 
 
 class NewtonMethod(OptimizationBlueprint):
-    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps=0):
-        super().__init__(x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps)
+    def __init__(self, x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, c1, c2, num_total_steps, jrandom_key, grad_eps, verbose)
     
     def step_getter(self, X, jrandom_key=None):
         f1 = -self.F.f1(X)
@@ -151,6 +167,7 @@ def helper_linesearch(F, c1, c2):
 
     def helper(x_0, f1_x_0, search_direction, jrandom_key):
         num_func_calls = 0
+        num_func_call_limit = 100
 
         f0 = F.f(x_0) # we do not count this call, because it has already been done in the grad_stepper.
         dg = jnp.inner(search_direction, f1_x_0)
@@ -163,7 +180,7 @@ def helper_linesearch(F, c1, c2):
             
         alpha = 1
         jrandom_key, subkey = jrandom.split(jrandom_key)
-        while armijo_rule(alpha, subkey):
+        while armijo_rule(alpha, subkey) and num_func_calls < num_func_call_limit:
             num_func_calls += 1
             jrandom_key, subkey = jrandom.split(jrandom_key)
             alpha = armijo_update(alpha)

@@ -35,7 +35,7 @@ class adapt_FD:
         u = None
 
         total_func_calls = 0
-
+        total_func_calls_limit = 250
         if f_x_0 is None:
             jrandom_key, subkey = jrandom.split(jrandom_key)
             f_x_0 = f.f(x_0, subkey)
@@ -48,7 +48,7 @@ class adapt_FD:
         
         total_func_calls += 2
         
-        while True:
+        while total_func_calls < total_func_calls_limit:
             curr_r = jnp.abs(f_x_0_four_h - 4 * f_x_0_h + 3 * f_x_0)/(8*sig)
 
             if curr_r < rl:

@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from jax import random as jrandom
-from optimize_USG_error import optimize_uncentered_S
+from optimize_USG_error import create_S
 
 def simplex_gradient(F, x_0, S, jrandom_key_f):
     num_func_calls = 0
@@ -23,16 +23,15 @@ class USD:
     def __init__(self, max_steps, sig):
         self.max_steps = max_steps
         self.sig = sig
-        self.prev_rot_S = None
+        self.W = None
 
     def grad(self, F, X, jrandom_key, H=None):
         x_0 = X
         if len(x_0.shape) != 1:
             x_0 = x_0.reshape(-1)
-        assert len(x_0) == 4
         
-        S, _, pre_rot_S = optimize_uncentered_S(H, self.sig, self.max_steps, self.prev_rot_S)
-        # self.pre_rot_S = pre_rot_S
+        S, W = create_S(H, self.sig, self.max_steps, self.W)
+        self.W = W
 
         return simplex_gradient(F, x_0, S, jrandom_key)
 

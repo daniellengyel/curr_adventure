@@ -119,14 +119,16 @@ def PyCutestIterator(idx_iterator=None, eps=0, noise_type="gaussian"):
 
     if idx_iterator is None:
         idx_iterator = range(len(adapt_functions))
-    pycutest.clear_cache("CUBE")
     for i in idx_iterator:
-        curr_prob = pycutest.import_problem(adapt_functions[i])
+        try:
+            curr_prob = pycutest.import_problem(adapt_functions[i])
+        except:
+            print("Could not import problem {}.".format(adapt_functions[i]))
         if curr_prob.n != adapt_function_dims[i]:
             try:
-                print("Failed with Problem", adapt_functions[i])
                 curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
             except:
+                print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
                 continue
         yield adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
 
