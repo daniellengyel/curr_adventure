@@ -110,26 +110,46 @@ class PyCutestWrapper:
         return self.cutest_f.hess(X)
 
 
-def PyCutestIterator(idx_iterator=None, eps=0, noise_type="gaussian"):
+def PyCutestGetter(i, eps=0, noise_type="gaussian"):
     adapt_functions = ["AIRCRFTB", "ALLINITU", "ARWHEAD", "BARD", "BDQRTIC", "BIGGS3", "BIGGS5", "BIGGS6", "BOX2", "BOX3", "BRKMCC", "BROWNAL", "BROWNDEN", "CLIFF", "CRAGGLVY", "CUBE", "DENSCHND", "DENSCHNE", "DIXMAANH", "DQRTIC", "EDENSCH", "EIGENALS", "EIGENBLS", "EIGENCLS", "ENGVAL1", "EXPFIT", "FLETCBV3", "FLETCHBV", "FREUROTH", "GENROSE", "GULF", "HAIRY", "HELIX", "NCB20B", "NONDIA", "NONDQUAR", "OSBORNEA", "OSBORNEB", "PENALTY1", "PFIT1LS", "PFIT2LS", "PFIT3LS", "PFIT4LS", "QUARTC", "SINEVAL", "SINQUAD", "SISSER", "SPARSQUR", "TOINTGSS", "TQUARTIC", "TRIDIA", "WATSON", "WOODS", "ZANGWIL"]
     adapt_function_dims = [5, 4, 100, 3, 100, 3, 5, 6, 2, 3, 2, 100, 4, 2, 
                             100, 2, 3, 3, 90, 100, 36, 110, 110, 30, 100, 2, 100, 100, 
                             100, 100, 3, 2, 3, 100, 100, 100, 5, 11, 100, 3, 3, 3,
                             3, 100, 2, 100, 2, 100, 100, 100, 100, 31, 100, 2]
 
-    if idx_iterator is None:
-        idx_iterator = range(len(adapt_functions))
-    for i in idx_iterator:
+
+
+    try:
+        curr_prob = pycutest.import_problem(adapt_functions[i])
+    except:
+        print("Could not import problem {}.".format(adapt_functions[i]))
+        return adapt_functions[i], None, None
+
+    if curr_prob.n != adapt_function_dims[i]:
         try:
-            curr_prob = pycutest.import_problem(adapt_functions[i])
+            curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
         except:
-            print("Could not import problem {}.".format(adapt_functions[i]))
-        if curr_prob.n != adapt_function_dims[i]:
-            try:
-                curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
-            except:
-                print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
-                continue
-        yield adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
+            print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
+            return adapt_functions[i], None, None
+    return adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
+
+
+
+
+    # if idx_iterator is None:
+    #     idx_iterator = range(len(adapt_functions))
+    # for i in idx_iterator:
+    #     try:
+    #         curr_prob = pycutest.import_problem(adapt_functions[i])
+    #     except:
+    #         print("Could not import problem {}.".format(adapt_functions[i]))
+    #         continue
+    #     if curr_prob.n != adapt_function_dims[i]:
+    #         try:
+    #             curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
+    #         except:
+    #             print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
+    #             continue
+    #     yield adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
 
 

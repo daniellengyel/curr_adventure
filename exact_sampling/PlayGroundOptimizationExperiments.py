@@ -1,10 +1,12 @@
 import jax.numpy as jnp
 import jax.random as jrandom
-from Functions import PyCutestIterator
+from Functions import PyCutestGetter
 from Optimization import BFGS, NewtonMethod
 from AdaptiveFD import adapt_FD
 from save_load import save_opt
 from USimplex import USD
+
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
@@ -13,7 +15,6 @@ noise_type="uniform"
 
 # num_test_problems = 14
 test_problem_iter = [1] # range(0, 1)
-test_problem_iter = PyCutestIterator(test_problem_iter, eps=eps, noise_type=noise_type)
 
 if noise_type == "uniform":
     sig = eps / jnp.sqrt(3)
@@ -39,22 +40,27 @@ jrandom_key = jrandom.PRNGKey(seed)
 
 
 # adaptive FD
-# test_problem_iter = None # [19] # range(0, 1)
+# test_problem_iter = [20] # [19] # range(0, 1)
 # test_problem_iter = PyCutestIterator(test_problem_iter, eps=eps, noise_type=noise_type)
 # for F_name, x_0, F in test_problem_iter:
 #     print(F_name)
 #     grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
 #     optimizer = BFGS(x_0, F, c1, c2, num_total_steps, jrandom_key, grad_getter, grad_eps)
 #     final_X, adaptFD_res = optimizer.run_opt()
-#     save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
+    # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
 
 
-test_problem_iter = [6] # range(0, 1)
-test_problem_iter = PyCutestIterator(test_problem_iter, eps=eps, noise_type=noise_type)
+
 # Our Method
-max_steps = 200
-for F_name, x_0, F in test_problem_iter:
+max_steps = 50
+test_problem_iter = [7] # range(15, 54) # range(0, 1)
+for i in tqdm(test_problem_iter):
+    F_name, x_0, F = PyCutestGetter(i, eps=eps, noise_type=noise_type)
+    
+    if F is None:
+        continue
     print(F_name)
+
     grad_getter = USD(max_steps, sig)
     optimizer = BFGS(x_0, F, c1, c2, num_total_steps, jrandom_key, grad_getter, grad_eps)
     final_X, our_res = optimizer.run_opt()
@@ -67,8 +73,8 @@ plt.xlabel("Time")
 plt.legend()
 plt.show()
 
-# plt.plot(adaptFD_res[:, 2], adaptFD_res[:, 0], label="Adapt")
-plt.plot(our_res[:, 2], our_res[:, 0], label="Our")
+plt.plot(adaptFD_res[:, 2], adaptFD_res[:, 0], label="Adapt")
+# plt.plot(our_res[:, 2], our_res[:, 0], label="Our")
 plt.xlabel("Func Calls")
 # plt.yscale("log")
 plt.legend()

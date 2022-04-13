@@ -2,7 +2,7 @@ from tkinter import Y
 import jax.numpy as jnp
 from jax import random as jrandom
 import time
-from optimize_USG_error import optimize_uncentered_S
+from archive.optimize_USG_error_old import optimize_uncentered_S
 from Functions import Brown
 
 import matplotlib.pyplot as plt

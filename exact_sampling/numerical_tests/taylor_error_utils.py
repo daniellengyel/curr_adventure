@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from Functions import Quadratic, Ackley, Brown
-from optimize_USG_error import optimize_uncentered_S
+from archive.optimize_USG_error_old import optimize_uncentered_S
 
 
 from scipy.stats import linregress

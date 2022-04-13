@@ -1,45 +1,51 @@
 import jax.numpy as jnp
 import jax.random as jrandom
+import numpy as np
+
+import scipy 
 
 import matplotlib.pyplot as plt
-import pandas as pd
-from jax import jit, grad, jacfwd, jacrev, xla_computation
 
-from Functions import Quadratic, Ackley, Brown 
+from create_W import optimize_W, convert_to_U
 
-from scipy.stats import linregress
 
 from tqdm import tqdm
-import pickle
+import time
 
-import numpy as np
+
 
 from jax.config import config
 config.update("jax_enable_x64", True)
 
-def get_a(D_min, sum_sqrt, dim, sig):
-    disc = sig**4 * (sum_sqrt**2) * (8 * (dim + 1) * D_min + sum_sqrt**2)
-    return 1/jnp.sqrt(dim * D_min) * jnp.sqrt(jnp.sqrt(disc) + 2 * (dim + 1) * D_min * sig**2 + sig**2 * sum_sqrt**2)
+def get_lambda_star(dim, sig, coeff):
+    
+    if dim == 3:
+        return jnp.cbrt(2 * coeff * sig**2), jnp.cbrt(coeff * sig**2 / 4)
+    
+    l1_denom = coeff*sig**2
+    
+    l1_factor = jnp.sqrt(coeff**2 * (dim + 1) * sig**4)
+    
+    
+    cbrt_term = jnp.cbrt(coeff * sig**2 * (dim - 1 - jnp.sqrt(dim + 1)) / (dim * (dim - 3)) )
+    
+    l1 = l1_factor / l1_denom * cbrt_term
+    l2 = cbrt_term
+    return l1, l2 
 
-def get_lambda_max(D_min, sum_sqrt, dim, sig):
-    disc = sig**4 * (sum_sqrt**2) * (8 * (dim + 1) * D_min + sum_sqrt**2)
-    numerator = jnp.sqrt(disc) + 4 * (dim + 1) * D_min * sig**2 + sig**2 * sum_sqrt**2
-    denom = D_min**(1.5) * 2 * jnp.sqrt(1/dim) * jnp.sqrt(jnp.sqrt(disc) + 2 * (dim + 1) * D_min * sig**2 + sig**2 * sum_sqrt**2)
-    return numerator/denom
+def get_lambda_tilde(D, sig, coeff, eps_bound=1e-5):
+    dim = len(D)
+    lmbdas_init = np.ones(dim)
+    bounds = tuple((eps_bound, None) for _ in range(dim))
+    
+    def fun(lmbdas):
+        a = D @ lmbdas / len(lmbdas)
+        b = jnp.sum(lmbdas)
+        return 1/2 * a**2 * dim / lmbdas[0] + sig**2 * dim/lmbdas[0] + sig**2 * jnp.sum(1/lmbdas) + lmbdas[0]**2 * dim#+ coeff*b**2
 
-def get_full_sing_vals(D, dim, sig):
-    D_diag = jnp.abs(jnp.diag(D))
-    max_row = jnp.argmin(D_diag)
-    sum_sqrt = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_diag[max_row])
-    lmbda_max = get_lambda_max(jnp.min(D_diag), sum_sqrt, dim, sig)
-    a = get_a(jnp.min(D_diag), sum_sqrt, dim, sig)
-    lmbda = sig*np.array(jnp.sqrt(lmbda_max / (a * D_diag)))
-    lmbda = lmbda.at[max_row].set(lmbda_max)
-    lmbda = jnp.array(lmbda)
-    sing_val = jnp.sqrt(lmbda)
-    return sing_val
+    return jnp.array(scipy.optimize.minimize(fun, lmbdas_init, bounds=bounds)["x"])
 
-def loss_getter(dim, N, H, sig):
+def loss_getter(dim, N, H, sig, coeff=0.1):
     def helper(X):
 
         S = X.reshape(N, dim).T
@@ -51,154 +57,93 @@ def loss_getter(dim, N, H, sig):
         third_term = S_inv.T @ jnp.ones(dim)
         third_term = jnp.linalg.norm(third_term)**2
         
-        return 1/2 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term)
+        return 1/2 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S)**4
+
 
     return helper
 
-def createU_4(max_row):
-    
-    res = np.array([[ 1.,  1.,  1.,  1.],
-                     [ 1.,  1., -1., -1.],
-                     [ 1., -1.,  1., -1.],
-                     [-1.,  1.,  1., -1.]])
-    
-    tmp_row = res[max_row].copy()
-    res[max_row] = jnp.ones(4)
-    res[0] = tmp_row
-    return 1/jnp.sqrt(4) * jnp.array(res)
-
-def generate_regular_simplex(dim):
-    res = []
-    I = np.eye(dim)
-    for i in range(dim):
-        res.append(jnp.sqrt(1 + 1/dim) * I[i] - 1/pow(dim, 3/2) *(np.sqrt(dim + 1) + 1) * np.ones(dim))
-        
-    res.append(1/np.sqrt(dim) * np.ones(dim))
-    
-    return jnp.array(res).T
-
-def convert_to_U(W, to_insert):
-    dim = W.shape[0] + 1
-    V = generate_regular_simplex(dim - 1)
-    tmp_U = (jnp.sqrt((dim - 1)/dim) * W @ V)
-    U = jnp.insert(tmp_U, to_insert, jnp.ones(shape=(1, dim))/jnp.sqrt(dim), axis=0)
-    return U
-
-def construct_c(sing_vals, D):
-    return sing_vals**2 * jnp.diag(D)
-
-def orthog_linesearch(l, c1, c2):
-
-    def helper(X, search_direction, A):
-        f0 = l(X)
-        g_tau_0 = -1/2 * jnp.linalg.norm(A, "fro")**2
-        
-        def armijo_rule(alpha):
-            return (l(search_direction(alpha)) > f0 + c1*alpha*g_tau_0) # and alpha > 0.001
-        
-        def armijo_update(alpha):
-            return c2*alpha
-            
-        alpha = 1
-        max_calls = 100
-        while armijo_rule(alpha) and max_calls > 0:
-            alpha = armijo_update(alpha)
-            max_calls -= 1
-
-        return alpha
-
-    return helper
+def lmbda_loss(lmbdas, dim, D, sig, coeff):
+    a = D @ lmbdas / len(lmbdas)
+    b = jnp.sum(lmbdas)
+    return 1/2 * a**2 * dim / lmbdas[0] + sig**2 * dim/lmbdas[0] + sig**2 * jnp.sum(1/lmbdas) + coeff*b**2
 
 
-def optimize_W(c, num_iter, x_init=None):
-    """Constraint is U.c = \bar{c} 1 and U.U^T = I"""
-    
-    dim = len(c)
-    
-    V = generate_regular_simplex(dim)
-    
-    # init X
-    if x_init is None:
-        X = jnp.eye(dim)
-    else:
-        X = x_init
-    I = jnp.eye(dim)
-    
-    
-    def l(U):
-        U_matrix = U.reshape(dim, dim)
-        return jnp.linalg.norm(jnp.diag(V.T @ U_matrix.T @ jnp.diag(c) @ U_matrix @ V) - jnp.ones(dim + 1) * jnp.mean(c)) 
-    
-    
-    g_l = grad(l)
-    linesearch = orthog_linesearch(l, c1=0.1, c2=0.9)
+# def get_alpha(D, l1, l2):
+#     Dmax = jnp.max(D)
+#     Dmin = jnp.min(D)
+#     return 1/(Dmax - Dmin) * (Dmax + l2/(l1 - l2) * jnp.sum(D)) 
 
 
-    eps = 1e-4
-    l_eps = 1e-2
-    
-    l_hist = []
-    for _ in range(num_iter):
-        num_iter -= 1
-        
-        G = g_l(X.flatten()).reshape(dim, dim)
-        l_hist.append(l(X))
-        
-        if l_hist[-1] < l_eps:
-            break
-
-        if jnp.linalg.norm(G) < eps:
-            break
-        
-        A = G @ X.T - X @ G.T
-                
-        Y = lambda tau: jnp.linalg.inv(I + tau/2 * A) @ (I - tau/2 * A) @ X
-        
-        alpha = linesearch(X, Y, A)
-
-        
-        X = Y(alpha)
-    # plt.plot(l_hist)
-    # plt.show()
-    print(l_hist[-1])
-    return X, l_hist
-
-
-def create_S(H, sig, num_iter=10, x_init=None):
+def create_S(H, sig, num_iter=10, x_init=None, coeff=0.1):
     dim = H.shape[0] 
+
+
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
     D, U_D = jnp.linalg.eig(H)
     U_D = jnp.real(U_D)
-    D = jnp.abs(jnp.real(jnp.diag(D)))
+    D = jnp.real(jnp.diag(D))
     # print(repr(jnp.diag(D)))
     # D = D + 0.01 * jnp.eye(dim)
     # print(D)
 
-    sing_vals = get_full_sing_vals(D, dim, sig)
-    c = construct_c(sing_vals, D)
-    min_D = jnp.diag(D).argmin()
+
+    diag_D = jnp.diag(D)
+    # increasing_D
+    increasing_sort = i = diag_D.argsort() 
+    increasing_D = diag_D[increasing_sort]
+    decreasing_D = increasing_D[::-1]
+
+    start_time = time.time()
+
+    lmbdas_increasing_tilde = get_lambda_tilde(increasing_D, sig, coeff, eps_bound=1e-4)
+    lmbdas_decreasing_tilde = get_lambda_tilde(decreasing_D, sig, coeff, eps_bound=1e-4)
+
+    loss_increasing = lmbda_loss(lmbdas_increasing_tilde, dim, increasing_D, sig, coeff)
+    loss_decreasing = lmbda_loss(lmbdas_decreasing_tilde, dim, decreasing_D, sig, coeff)
+
+    print("Time to get lmbdas and loss", time.time() - start_time)
+    start_time = time.time()
+
+    if loss_increasing < loss_decreasing:
+        lmbdas_tilde = lmbdas_increasing_tilde[increasing_sort.argsort()]
+    else:
+        lmbdas_tilde = lmbdas_decreasing_tilde[increasing_sort[::-1].argsort()]
+
+    sing_vals = lmbdas_tilde**0.5
+    c = lmbdas_tilde * diag_D
+    print(repr(lmbdas_tilde))
+    min_D = diag_D.argmin()
+    # print(repr(np.delete(c, min_D)))
     W, l_hist = optimize_W(np.delete(c, min_D), num_iter, x_init=x_init) 
+    print(l_hist[-1])
+    print("Time to get W", time.time() - start_time)
+    # plt.plot(l_hist)
+    # plt.show()
     U = convert_to_U(W, min_D)
     S = jnp.diag(sing_vals) @ U
-
     return U_D @ S, W
 
 
 
 if __name__ == "__main__":
+    from jax import grad
 
     dim = 3
     # D = np.linspace(1, 100, dim)
     # np.random.shuffle(D)
     # D = np.diag(D)
-    # D = jnp.diag(jnp.array([  50.5, 75.25,25.75, 100, 1000]))
+    D = jnp.diag(jnp.array([75.25,  -50.5, 25.75, 100, 200, 12, 89, 12]))
     sig = 0.1
+    dim = len(D)
+    coeff = 1
 
-    l = loss_getter(dim, dim, D, sig)
+    l = loss_getter(dim, dim, D, sig, coeff=coeff)
 
-    S, _ = create_S(D, sig, num_iter=50)
+    S, W = create_S(D, sig, num_iter=100, coeff=coeff)
+    print(repr(S))
     print(l(S.T.flatten()))
+    print(grad(l)(S.T.flatten()))
 
 
 

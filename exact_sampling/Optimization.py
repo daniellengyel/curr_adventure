@@ -132,14 +132,6 @@ class BFGS(OptimizationBlueprint):
             H = inv_hessian_approx
 
         grad_diff = (g_1 - g_0)
-        print("grad_diff", grad_diff)
-        print("g0 est", g_0)
-        print("g0 true", self.F.f1(x_0))
-
-
-        print("g1 est", g_1)
-        print("g1 true", self.F.f1(x_1))
-        print("grad true diff", self.F.f1(x_1) - self.F.f1(x_0))
         update_step = x_1 - x_0
         
         ys = jnp.inner(grad_diff, update_step)
