@@ -2,11 +2,12 @@ import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
 
-from generate_sing_vals_V import generate_sing_vals_V_multi
+from generate_sing_vals_V import generate_sing_vals_V_multi, generate_sing_vals_V
 
 from jax.config import config
 config.update("jax_enable_x64", True)
 
+import time
 
 def get_S_pow_index_sets(dim, jrandom_key):
     """Returns a set of sets. Each set with the indecies of H to use."""
@@ -56,15 +57,16 @@ def create_approx_S(H, sig, coeff, jrandom_key):
     S_pow_index_set = get_S_pow_index_sets(dim, jrandom_key)
     all_pow_U = generate_all_pow_U(len(S_pow_index_set))
     S = np.zeros(shape=(dim, dim, ))
-    
-    # D_diag_proc = 
 
+    all_sing_vals = []
     for i in range(len(all_pow_U)):
         if S_pow_index_set[i] is not None:
-            curr_sing_vals, _ = generate_sing_vals_V_multi(D_diag[S_pow_index_set[i]], sig, coeff)
+            curr_sing_vals, _ = generate_sing_vals_V(D_diag[S_pow_index_set[i]], sig, coeff)
+            all_sing_vals.append(jnp.diag(curr_sing_vals))
             curr_U = permute_rows(np.array(all_pow_U[i]), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
             curr_pow_S = np.array(curr_sing_vals @ curr_U)
             S[S_pow_index_set[i].reshape(-1, 1), S_pow_index_set[i]] = curr_pow_S
+    print(all_sing_vals)
     S = jnp.array(S)
     S = U_D @ S
 
@@ -86,15 +88,22 @@ def eff_create_approx_S(H, sig, coeff, jrandom_key):
     S = np.zeros(shape=(dim, dim, ))
     
     D_diag_multi = []
-    for i in range(len(S_pow_index_set)):
-        if S_pow_index_set[i] is not None:
-            D_diag_multi += D_diag[S_pow_index_set[i]]
-
-    sing_vals_multi, _ = generate_sing_vals_V_multi(D_diag_multi, sig, coeff)
-
     for i in range(len(all_pow_U)):
         if S_pow_index_set[i] is not None:
-            curr_sing_vals, _ = jnp.diag(sing_vals_multi[i])
+            D_diag_multi.append(D_diag[S_pow_index_set[i]])
+    
+    print(D_diag_multi)
+    start_time = time.time()
+
+    sing_vals_multi, _ = generate_sing_vals_V_multi(D_diag_multi, sig, coeff)
+    print(sing_vals_multi)
+    print(time.time() - start_time)
+    
+    sing_vals_index = 0
+    for i in range(len(all_pow_U)):
+        if S_pow_index_set[i] is not None:
+            curr_sing_vals = jnp.diag(sing_vals_multi[sing_vals_index])
+            sing_vals_index += 1
             curr_U = permute_rows(np.array(all_pow_U[i]), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
             curr_pow_S = np.array(curr_sing_vals @ curr_U)
             S[S_pow_index_set[i].reshape(-1, 1), S_pow_index_set[i]] = curr_pow_S
@@ -117,6 +126,7 @@ if __name__ == "__main__":
     jrandom_key = jrandom.PRNGKey(0)
 
     print(eff_create_approx_S(D, sig, coeff, jrandom_key))
+    print(create_approx_S(D, sig, coeff, jrandom_key))
 
 
 

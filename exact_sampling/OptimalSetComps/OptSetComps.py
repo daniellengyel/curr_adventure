@@ -41,7 +41,7 @@ U_opt_res = []
 
 seed = 0
 
-test_problem_iter = range(3, 8)
+test_problem_iter = range(4, 5)
 
 sig = 0.1
 coeff = 0.1
