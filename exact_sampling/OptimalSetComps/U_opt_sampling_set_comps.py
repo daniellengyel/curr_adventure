@@ -48,7 +48,7 @@ def optimize_W(A, P, sing_vals, V, U_D, num_iter, jrandom_key, loss, x_init=None
 
     l_hist = []
     for _ in range(num_iter):
-        if len(l_hist) > 1 and abs(l_hist[-2][1] - l_hist[-1][1]) < l_diff_eps:
+        if len(l_hist) > 1 and abs(l_hist[-2][0][1] - l_hist[-1][0][1]) < l_diff_eps:
             break
 
         G = g_l(X.flatten()).reshape(dim - 1, dim - 1)

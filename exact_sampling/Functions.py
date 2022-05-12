@@ -5,102 +5,48 @@ from jax import jit, grad, jacfwd
 import pycutest
 
 class Quadratic:
-    def __init__(self, Q, b, sig=0):
+    def __init__(self, Q, b, sig=0,  noise_type="gaussian"):
         self.Q = Q
         self.b = b
         self.sig = sig
-        self._f1 = grad(lambda x: self.f(x, None)[0])
+        self.noise_type = noise_type
+        self._f1 = grad(lambda x: self.f(x, None))
         self._f2 = jacfwd(lambda x: self.f1(x))
         
         
     def f(self, X, jrandom_key=None):
-        is_flat = False
-        if len(X.shape) == 1:
-            is_flat = True
-            X = X.reshape(1, -1)
-        Y = jnp.dot(self.Q, X.T)
-        Y = jnp.diag(jnp.dot(X, Y)) + X.dot(self.b) # TODO fix. inefficient way to remove x_j^T Q x_i for i != j. 
+        out = X.T @ self.Q @ X + X.dot(self.b)
+        
         if jrandom_key is not None:
-            Y += self.sig * jrandom.normal(jrandom_key, shape=(X.shape[0], ))
-        if is_flat:
-            return Y[0]
-        return Y
+            if self.noise_type == "uniform":
+                eps = self.sig * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
+            else:
+                return out + self.sig * jrandom.normal(jrandom_key) 
     
-    def f1(self, X):
-        return self._f1(X.reshape(1, -1))[0]
-    
-    def f2(self, X):
-        return self._f2(X.reshape(1, -1)).reshape(X.size, X.size)
-
-
-class Ackley:
-    def __init__(self, sig=0):
-        if sig is None:
-            sig = 0
-        self.sig = sig
-
-        self._f1 = grad(lambda x: self.f(x, None)[0])
-        self._f2 = jacfwd(lambda x: self.f1(x))
-    
-    def f(self, X, jrandom_key=None):
-        xs = X.T
-        out_shape = xs[0].shape
-        a = jnp.exp(-0.2 * jnp.sqrt(1. / len(xs) * jnp.square(jnp.linalg.norm(xs, axis=0))))
-        b = - jnp.exp(1. / len(xs) *jnp.sum(jnp.cos(2 * jnp.pi * xs), axis=0))
-        out = jnp.array(-20 * a + b + 20 + jnp.exp(1)).reshape(out_shape)
-        if jrandom_key is not None:
-            return out + self.sig * jrandom.normal(jrandom_key, shape=(X.shape[0], )) 
-        return out
-
-
-    def f1(self, X):
-        """del H/del xi = -20 * -0.2 * (xi * 1/n) / sqrt(1/n sum_j xj^2) * a + 2 pi sin(2 pi xi)/n * b"""
-        return self._f1(X.reshape(1, -1))[0]
-
-    def f2(self, X):
-        return self._f2(X.reshape(1, -1)).reshape(X.size, X.size)
-
-class Brown:
-    def __init__(self, sig=0):
-        self.sig = sig
-
-        self._f1 = grad(lambda x: self.f(x, None)[0])
-        self._f2 = jacfwd(lambda x: self.f1(x))
-    
-    def f(self, X, jrandom_key=None):
-        is_flat = False
-        if len(X.shape) == 1:
-            is_flat = True
-            X = X.reshape(1, -1)
-
-        X2 = X**2
-        out = jnp.sum(X2[:, :-1]**(X2[:, 1:] + 1) + X2[:, 1:]**(X2[:, :-1] + 1), axis=1)
-        if jrandom_key is not None:
-            return out + self.sig * jrandom.normal(jrandom_key, shape=(X.shape[0], )) 
-        if is_flat:
-            return out[0]
         return out
     
     def f1(self, X):
-        return self._f1(X.reshape(1, -1))[0]    
-
+        return self._f1(X)
+    
     def f2(self, X):
-        return self._f2(X.reshape(1, -1)).reshape(X.size, X.size)
+        return self._f2(X).reshape(X.size, X.size)
 
 
 class PyCutestWrapper:
-    def __init__(self, cutest_f, eps=0,  noise_type="gaussian"):
+    def __init__(self, cutest_f, sig=0,  noise_type="gaussian"):
         self.cutest_f = cutest_f
-        self.eps = eps
+        self.sig = sig
         self.noise_type = noise_type
 
     def f(self, X, jrandom_key=None):
         out = self.cutest_f.obj(X)
         if jrandom_key is not None:
             if self.noise_type == "uniform":
-                return out + 2 * self.eps * jrandom.uniform(jrandom_key) - self.eps
+                eps = self.sig * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
             else:
-                return out + self.eps * jrandom.normal(jrandom_key) 
+                return out + self.sig * jrandom.normal(jrandom_key) 
         return out
 
     def f1(self, X):
@@ -110,46 +56,74 @@ class PyCutestWrapper:
         return self.cutest_f.hess(X)
 
 
-def PyCutestGetter(i, eps=0, noise_type="gaussian"):
-    adapt_functions = ["AIRCRFTB", "ALLINITU", "ARWHEAD", "BARD", "BDQRTIC", "BIGGS3", "BIGGS5", "BIGGS6", "BOX2", "BOX3", "BRKMCC", "BROWNAL", "BROWNDEN", "CLIFF", "CRAGGLVY", "CUBE", "DENSCHND", "DENSCHNE", "DIXMAANH", "DQRTIC", "EDENSCH", "EIGENALS", "EIGENBLS", "EIGENCLS", "ENGVAL1", "EXPFIT", "FLETCBV3", "FLETCHBV", "FREUROTH", "GENROSE", "GULF", "HAIRY", "HELIX", "NCB20B", "NONDIA", "NONDQUAR", "OSBORNEA", "OSBORNEB", "PENALTY1", "PFIT1LS", "PFIT2LS", "PFIT3LS", "PFIT4LS", "QUARTC", "SINEVAL", "SINQUAD", "SISSER", "SPARSQUR", "TOINTGSS", "TQUARTIC", "TRIDIA", "WATSON", "WOODS", "ZANGWIL"]
-    adapt_function_dims = [5, 4, 100, 3, 100, 3, 5, 6, 2, 3, 2, 100, 4, 2, 
-                            100, 2, 3, 3, 90, 100, 36, 110, 110, 30, 100, 2, 100, 100, 
-                            100, 100, 3, 2, 3, 100, 100, 100, 5, 11, 100, 3, 3, 3,
-                            3, 100, 2, 100, 2, 100, 100, 100, 100, 31, 100, 2]
+def PyCutestGetter(func_name=None, func_dim=None, func_i=None, dim_i=None, sig=0, noise_type="gaussian"):
 
+    adapt_functions = {
+        "AIRCRFTB": [5], "ALLINITU": [4], "ARWHEAD": [100], 
+        "BARD": [3], "BDQRTIC":[100], "BIGGS3":[3], "BIGGS5":[5], "BIGGS6":[6], 
+        "BOX2":[2], "BOX3":[3], "BRKMCC":[2], "BROWNAL":[10, 100, 200], "BROWNDEN":[4], 
+        "CLIFF":[2], "CRAGGLVY":["C", [4, 10, 50, 100], ['M', 1, 4, 24, 49]], "CUBE":[2], 
+        "DENSCHNA":[2], "DENSCHNB":[2], "DENSCHNC":[2], "DENSCHND":[3], "DENSCHNE":[3], "DENSCHNF":[2], 
+        "DIXMAANA": ["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANB":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANC":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAAND":["C", [15, 90, 300], ['M', 5, 30, 100]], 
+        "DIXMAANE":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANF":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANG":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANH":["C", [15, 90, 300], ['M', 5, 30, 100]], 
+        "DIXMAANI":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANJ":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANK":["C", [15, 90, 300], ['M', 5, 30, 100]], "DIXMAANL":["C", [15, 90, 300], ['M', 5, 30, 100]],
+        "DQRTIC":[10, 50, 100], 
+        "EDENSCH":[36], "EIGENALS":["C", [6, 110], ['N', 2, 10]], "EIGENBLS":["C", [6, 110], ['N', 2, 10]], "EIGENCLS":["C", [30], ['M', 2]], "ENGVAL1":[2, 50, 100], "EXPFIT":[2], 
+        "FLETCBV3":[10, 100], "FLETCHBV":[10, 100], "FREUROTH":[2, 10, 50, 100], 
+        "GENROSE":[5, 10, 100], "GULF":[3], 
+        "HAIRY":[2], "HELIX":[3], 
+        "JENSMP": [2], 
+        "KOWOSB":[4], 
+        "MEXHAT":[2], "MOREBV": [10, 50, 100], 
+        "NCB20B":[21, 22, 50, 100, 180], "NONDIA": [10, 20, 30, 50, 90, 100], "NONDQUAR": [100], 
+        "OSBORNEA":[5], "OSBORNEB":[11], 
+        "PENALTY1":[4, 10, 50, 100], "PFIT1LS":[3], "PFIT2LS":[3], "PFIT3LS":[3], "PFIT4LS":[3], 
+        "QUARTC":[25, 100], 
+        "SINEVAL":[2], "SINQUAD":[5, 50, 100], "SISSER":[2], "SPARSQUR":[10, 50, 100], 
+        "TOINTGSS":[10, 50, 100], "TQUARTIC":[5, 10, 50, 100], "TRIDIA":[10, 20, 30, 50, 100], 
+        "WATSON":[12, 31], "WOODS": ["C", [4, 100], ['NS', 1, 25]], 
+        "ZANGWIL2":[2]
+    }
 
 
     try:
-        curr_prob = pycutest.import_problem(adapt_functions[i])
+        if func_name is None:
+            func_name = list(adapt_functions.keys())[func_i]
+        
+        if func_dim is None:
+            if adapt_functions[func_name][0] == "C":
+                func_dim = adapt_functions[func_name][1][dim_i]
+            else:
+                func_dim = adapt_functions[func_name][dim_i]
+
+        if adapt_functions[func_name][0] == "C":
+            dim_i = adapt_functions[func_name][1].index(func_dim)
+            sif_key, sif_val = adapt_functions[func_name][2][0], adapt_functions[func_name][2][dim_i + 1]
+        else:
+            sif_key, sif_val = 'N', func_dim
+
     except:
-        print("Could not import problem {}.".format(adapt_functions[i]))
-        return adapt_functions[i], None, None
+        # print("Function index {} with dimension index {} is not a test problem.".format(func_i, dim_i))
+        return None, None, None
+    
+    
 
-    if curr_prob.n != adapt_function_dims[i]:
+    try:
+        curr_prob = pycutest.import_problem(func_name)
+    except:
+        print("Could not import problem {}.".format(func_name))
+        return func_name, None, None
+
+    if curr_prob.n != func_dim:
         try:
-            curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
+            curr_prob = pycutest.import_problem(func_name, sifParams={sif_key:sif_val})
         except:
-            print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
-            return adapt_functions[i], None, None
-    return adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
+            print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(func_name, curr_prob.n, func_dim))
+            return func_name, None, None
+
+    return  func_name, curr_prob.x0, PyCutestWrapper(curr_prob, sig, noise_type)
 
 
 
-
-    # if idx_iterator is None:
-    #     idx_iterator = range(len(adapt_functions))
-    # for i in idx_iterator:
-    #     try:
-    #         curr_prob = pycutest.import_problem(adapt_functions[i])
-    #     except:
-    #         print("Could not import problem {}.".format(adapt_functions[i]))
-    #         continue
-    #     if curr_prob.n != adapt_function_dims[i]:
-    #         try:
-    #             curr_prob = pycutest.import_problem(adapt_functions[i], sifParams={'N':adapt_function_dims[i]})
-    #         except:
-    #             print("Failed with Problem {}, it has {} dimensions instead of the expected {} dimensions.".format(adapt_functions[i], curr_prob.n, adapt_function_dims[i]))
-    #             continue
-    #     yield adapt_functions[i], curr_prob.x0, PyCutestWrapper(curr_prob, eps, noise_type)
 
 

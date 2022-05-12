@@ -17,20 +17,3 @@ def simplex_gradient(F, x_0, S, jrandom_key_f):
     return SS_inv.dot(S.dot(FS - F_x_0)), num_func_calls
 
 
-
-# class USD:
-#     def __init__(self, max_steps, sig):
-#         self.max_steps = max_steps
-#         self.sig = sig
-#         self.W = None
-
-#     def grad(self, F, X, jrandom_key, H=None):
-#         x_0 = X
-#         if len(x_0.shape) != 1:
-#             x_0 = x_0.reshape(-1)
-        
-#         S, W = create_S(H, self.sig, self.max_steps, self.W)
-#         self.W = W
-
-#         return simplex_gradient(F, x_0, S, jrandom_key)
-

@@ -43,7 +43,7 @@ def loss_getter(dim, N, H, sig, coeff):
         second_term = jnp.linalg.norm(S_inv, ord="fro")**2
         third_term = S_inv.T @ jnp.ones(dim)
         third_term = jnp.linalg.norm(third_term)**2
-        return 1/2 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S)**4
+        return 1/4 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S, ord="fro")**4
 
     return helper
 

@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jax import grad
+from jax import grad, jacfwd
 import jax.random as jrandom
 import numpy as np
 
@@ -8,7 +8,7 @@ import scipy
 from jax.config import config
 config.update("jax_enable_x64", True)
 
-
+import time
 
 def loss_getter(dim, D, sig, coeff=0.1):
     def helper(X):
@@ -21,8 +21,9 @@ def loss_getter(dim, D, sig, coeff=0.1):
         third_term = S_inv.T @ jnp.ones(dim)
         third_term = jnp.linalg.norm(third_term)**2
         
-        return 1/2 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S, ord="fro")**4
+        return 1/4 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S, ord="fro")**4
     return helper
+
 
 def get_alpha(D, l1, l2):
     Dmax = jnp.max(D)
@@ -58,16 +59,32 @@ def lmbda_loss(lmbdas, D_diag, sig, coeff, lmbda_star):
     dim = len(D_diag)
 
     a = D_diag @ lmbda_star / len(lmbda_star)
-    if a < 0:
+    alpha = get_alpha(D_diag, lmbda_star[0], lmbda_star[1])
+    if (alpha < 1) and (alpha > 0):
+        l_max_idx = jnp.argmin(jnp.abs(D_diag))
+    elif a < 0:
         l_max_idx = jnp.argmax(D_diag)
     else:
         l_max_idx = jnp.argmin(D_diag)
 
-
     a = D_diag @ lmbdas / len(lmbdas)
     b = jnp.sum(lmbdas)
-    return 1/2 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas) + coeff*b**2
+    return 1/4 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas) + coeff*b**2
 
+def lambda_coeff_zero(D_diag, l_max_idx, sig):
+    dim = len(D_diag)
+    D_diag = jnp.abs(D_diag)
+    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_diag[l_max_idx])
+    D_l_max_idx = D_diag[l_max_idx]
+    numerator = 2 * (1 + dim) * D_l_max_idx * sig**2 + D_sum**2 * sig**2 + jnp.sqrt(D_sum**2 * (8 * (1 + dim) * D_l_max_idx + D_sum**2) * sig**4)
+    
+    a = jnp.sqrt(2 * numerator/(dim * D_l_max_idx))
+    l = (2 * (1 + dim) * D_l_max_idx * sig**2 + numerator)/(D_l_max_idx**2 * a)
+
+    lmbdas = [(sig * jnp.sqrt(2*l/(D_diag[i] * a))) for i in range(len(D_diag))]
+    lmbdas[jnp.argmin(jnp.abs(D_diag))] = l
+    
+    return jnp.array(lmbdas), [a, 0, l]
     
 def get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
     dim = len(D_diag)
@@ -75,7 +92,10 @@ def get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
     bounds = tuple((eps_bound, None) for _ in range(dim))
 
     a = D_diag @ lmbda_star / len(lmbda_star)
-    if a < 0:
+    alpha = get_alpha(D_diag, lmbda_star[0], lmbda_star[1])
+    if (alpha < 1) and (alpha > 0):
+        l_max_idx = jnp.argmin(jnp.abs(D_diag))
+    elif a < 0:
         l_max_idx = jnp.argmax(D_diag)
     else:
         l_max_idx = jnp.argmin(D_diag)
@@ -83,90 +103,75 @@ def get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
     def lmbda_loss(lmbdas):
         a = D_diag @ lmbdas / len(lmbdas)
         b = jnp.sum(lmbdas)
-        return 1/2 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas) + coeff*b**2
+        return 1/4 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas) + coeff * b**2
 
-    lmbda_tilde = jnp.array(scipy.optimize.minimize(lmbda_loss, lmbdas_init, bounds=bounds)["x"])
-
+    g_l = grad(lmbda_loss)
+    h_l = jacfwd(g_l)
+    lmbda_tilde = jnp.array(scipy.optimize.minimize(lmbda_loss, lmbdas_init, method="Newton-CG", jac=g_l, hess=h_l)["x"])
     return lmbda_tilde
 
-def get_multi_lambda_tilde(D_diag_multi, sig, coeff, lmbda_star_multi, eps_bound=1e-8):
 
-    a_multi = [D_diag_multi[i] @ lmbda_star_multi[i] / len(lmbda_star_multi[i]) for i in range(len(D_diag_multi))]
-    l_max_idx_multi = [jnp.argmax(D_diag_multi[i]) if a_multi[i] < 0 else jnp.argmin(D_diag_multi[i]) for i in range(len(D_diag_multi))]
-    total_dim = sum([len(D_diag_multi[i]) for i in range(len(D_diag_multi))])
 
-    dims = jnp.array([len(D_diag_multi[i]) for i in range(len(D_diag_multi))])
-
+def get_lambda_tilde_least_squares(D_diag, sig, coeff, lmbda_star, max_h=1, prev_sol=None):
     
-    run_sum = 0
-    l_max_idx_multi_all = []
-    dims_all = []
-    a_filter = np.zeros(shape=(len(D_diag_multi), total_dim))
-    for i in range(len(dims)):
-        l_max_idx_multi_all += dims[i] * [l_max_idx_multi[i] + run_sum]
-        dims_all += dims[i] * [dims[i]]
-        a_filter[i, run_sum:run_sum + dims[i]] = 1
-        run_sum += dims[i]
+    dim = len(D_diag)
+    a_star = D_diag @ lmbda_star / len(lmbda_star)
+    alpha = get_alpha(D_diag, lmbda_star[0], lmbda_star[1])
+    if (alpha < 1) and (alpha > 0):
+        l_max_idx = jnp.argmin(jnp.abs(D_diag))
+    elif a_star < 0:
+        l_max_idx = jnp.argmax(D_diag)
+    else:
+        l_max_idx = jnp.argmin(D_diag)
 
-    a_filter = jnp.array(a_filter)
+    def helper(x):
+        a, b, l = x[0], jnp.abs(x[1]), jnp.abs(x[2])
+        
+        D_seq = 1/jnp.sqrt(D_diag * a / (2*l) + b)
+        # Go through this and double check. Also, for dimensions lower than lets say 32 it's probably better to use the minimization method. (Let's also just compare with mathematica.)
+        f1 = 1/dim * (sig * (jnp.sum((D_diag * D_seq)[:l_max_idx]) + jnp.sum((D_diag * D_seq)[l_max_idx+1:])) + D_diag[l_max_idx] * l) - a
+        f2 = 2 * coeff * (sig * (jnp.sum(D_seq[:l_max_idx]) + jnp.sum(D_seq[l_max_idx+1:])) + l) - b
+        f3 = 1/2. * a * D_diag[l_max_idx] * l - 1/4. * a**2 * dim - sig**2 * (dim + 1) + b * l**2
+
+        return jnp.array([f1, f2, f3])
+
+    # if (prev_sol is not None) and (prev_sol != []):
+    #     x_init = prev_sol
+    # else:
+    if coeff == 0:
+        lmbda_tilde, _ = lambda_coeff_zero(D_diag, l_max_idx, sig)
+        lmbda_tilde = jnp.clip(lmbda_tilde, a_max=l_max_idx)
+        # print(lmbda_tilde)
+        return lmbda_tilde, _
+
+    x_init = [0, 1, 1/(1 + D_diag[l_max_idx])]
+
+    res = scipy.optimize.least_squares(helper, x_init, ) 
+    # print(res)
+
+    a, b, l = res["x"]
+    b = jnp.abs(b)
+    l = jnp.abs(l)
     
-    l_max_idx_multi_all = tuple([l_max_idx_multi_all])
-    dims_all = jnp.array(dims_all)
-    D_multi = jnp.concatenate(D_diag_multi)
-
-    def lmbda_loss(lmbdas):
-
-        a = a_filter @ ((D_multi / (jnp.sqrt(dims_all) * jnp.sqrt(lmbdas[l_max_idx_multi_all])) * lmbdas))
-        a_squared = a.T @ a
-        b = a_filter @ lmbdas
-        b_squared = b.T @ b
-
-
-        # for i in range(len(D_diag_multi)):
-            # dim = len(D_diag_multi[i])
-            # a = D_diag_multi[i] @ lmbdas[curr_lmbda_num:curr_lmbda_num+dim] / dim
-            # b = jnp.sum(lmbdas[curr_lmbda_num:curr_lmbda_num+dim])
-            # curr_loss += 1/2 * a**2 * dim / lmbdas[curr_lmbda_num + l_max_idx_multi[i]] + sig**2 * dim/lmbdas[curr_lmbda_num + l_max_idx_multi[i]] + sig**2 * jnp.sum(1/lmbdas[curr_lmbda_num:curr_lmbda_num+dim]) + coeff*b**2
-            # curr_lmbda_num += dim
-        loss = 1/2 * a_squared + sig**2 * jnp.sum(1/lmbdas[l_max_idx_multi_all]) + sig**2 * jnp.sum(1/lmbdas) + coeff*b_squared
-        return loss
+    lmbda_tilde = jnp.array([float(sig*jnp.sqrt(1/(a * D_diag[i] / (2*l) + b))) for i in range(l_max_idx)] + [l] + [float(sig*jnp.sqrt(1/(a * D_diag[i] / (2*l) + b))) for i in range(l_max_idx+1, dim)])
     
-    tmp_lmbda_tilde = jnp.array([0.0350607 , 0.01449902, 0.01412839, 0.0138914, 0.3246133 , 0.03795886, 0.03197942, 0.03197662, 0.03193183,
-             0.03190124, 0.03177178, 0.03175972, 0.03175547, 0.03174929,
-             0.03172634, 0.03168808, 0.03168544, 0.03166968, 0.03166923,
-             0.03166431, 0.03166135, 0.03159596, 0.03141259, 0.03133268,
-             0.03009546, 0.0283492 , 0.02817361, 0.02799253, 0.02747393,
-             0.02703282, 0.02694328, 0.02677607, 0.02657705, 0.02652984,
-             0.02645184, 0.02640589, 1.08824979, 0.052379  , 0.04977457, 0.04721447, 0.04717982,
-             0.04713195, 0.04713451, 0.04709396, 0.04701821, 0.04706659,
-             0.04698764, 0.04694285, 0.04691369, 0.04689094, 0.0468909 ,
-             0.04688808, 0.04688388, 0.04687826, 0.04687509, 0.04687344,
-             0.04686102, 0.0468593 , 0.0468465 , 0.04684606, 0.04684285,
-             0.04683243, 0.04683158, 0.04681068, 0.04680965, 0.04680523,
-             0.04679303, 0.04678836, 0.04675685, 0.04661435, 0.04651847,
-             0.04613409, 0.04596316, 0.04577467, 0.04556416, 0.04541263,
-             0.04510022, 0.0451219 , 0.04467399, 0.0441646 , 0.04393059,
-             0.04346917, 0.04324267, 0.04272223, 0.04250405, 0.0422871 ,
-             0.04203621, 0.04149565, 0.04115429, 0.04087367, 0.04076232,
-             0.04037356, 0.0401241 , 0.04005248, 0.03955809, 0.03946576,
-             0.03929919, 0.03909493, 0.03901273, 0.01616137])**2
+    # print("lmbda tilde", lmbda_tilde**0.5)
+    # print("Ddiag", D_diag)
+    # print("lmbda tilde pre", lmbda_tilde)
+    # if jnp.max(lmbda_tilde) > 0.4:
+    #     factor = 0.4 / jnp.max(lmbda_tilde)
+    #     lmbda_tilde = lmbda_tilde * factor
+        # print("Factor smaller", factor)
 
-    print(lmbda_loss(tmp_lmbda_tilde))
-
-    lmbdas_init = np.ones(total_dim)
-    bounds = tuple((eps_bound, None) for _ in range(total_dim))
+    # print("D diag", D_diag)
+    # print("l_max_idx", l_max_idx)
+    # print("lmbda tilde", lmbda_tilde)
+    # print(res)
     
-    lmbda_tilde = jnp.array(scipy.optimize.minimize(lmbda_loss, lmbdas_init, bounds=bounds,  jac=grad(lmbda_loss))["x"])
-    print(lmbda_loss(lmbda_tilde))
-    lambda_tilde_multi = []
-    curr_lmbda_num = 0
-    for i in range(len(D_diag_multi)):
-        dim = len(D_diag_multi[i])
-        lambda_tilde_multi.append(lmbda_tilde[curr_lmbda_num:curr_lmbda_num+dim])
-        curr_lmbda_num += dim
+    # print("Ddiag", D_diag)
+    # print("lmbda tilde", lmbda_tilde)
 
-
-    return lambda_tilde_multi
+    return lmbda_tilde, res["x"]
 
 
 def permute_rows(M, i, j):
@@ -177,62 +182,18 @@ def permute_rows(M, i, j):
 
 
 # # This function may change if we decide to allow for lambda_star solutions. 
-def generate_sing_vals_V(D_diag, sig, coeff):
-    dim = len(D_diag) 
-
+def generate_sing_vals_V(D_diag, sig, coeff, prev_sols=None):
+    dim = len(D_diag)
     lambda_star = get_lambda_star(dim, sig, coeff)
-    lmbda = get_lambda_tilde(D_diag, sig, coeff, lambda_star, eps_bound=1e-15)
+    lmbda, curr_sols = get_lambda_tilde_least_squares(D_diag, sig, coeff, lambda_star, prev_sols)
     sing_vals = jnp.diag(lmbda**0.5)
     V = jnp.eye(dim)
 
-    return sing_vals, V
-
-
-# This function may change if we decide to allow for lambda_star solutions. 
-def generate_sing_vals_V_multi(D_diag_multi, sig, coeff):
-
-
-    lambda_star_multi = [get_lambda_star(len(D_diag_multi[i]), sig, coeff) for i in range(len(D_diag_multi))]
-    lmbda_multi = get_multi_lambda_tilde(D_diag_multi, sig, coeff, lambda_star_multi, eps_bound=1e-8)
-    sing_vals = [lmbda_multi[i]**0.5 for i in range(len(D_diag_multi))]
-    V_multi = [jnp.eye(len(D_diag_multi[i])) for i in range(len(D_diag_multi))]
-
-    return sing_vals, V_multi
-
-
-def get_lambda_tilde_least_squares(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
-    dim = len(D_diag)
-    lmbdas_init = np.ones(dim)
-    bounds = tuple((eps_bound, None) for _ in range(dim))
-
-    a = D_diag @ lmbda_star / len(lmbda_star)
-    if a < 0:
-        l_max_idx = jnp.argmax(D_diag)
+    if prev_sols is None:
+        return sing_vals, V
     else:
-        l_max_idx = jnp.argmin(D_diag)
+        return sing_vals, V, curr_sols
 
-    def helper(x):
-        a, b, l = x[0], x[1], x[2]
-        
-        D_seq = 1/jnp.sqrt(D_diag * a / l + b)
-
-        f1 = 1/dim * (sig * (jnp.sum((D_diag * D_seq)[:l_max_idx]) + jnp.sum((D_diag * D_seq)[l_max_idx+1:])) + D_diag[l_max_idx] * l) - a
-        f2 = 2 * (sig * (jnp.sum(D_seq[:l_max_idx]) + jnp.sum(D_seq[l_max_idx+1:])) + l) - b
-        f3 = a * D_diag[l_max_idx] * l - 1/2. * a**2 * dim - sig**2 *(dim + 1) + b * l**2
-        
-        return jnp.array([f1, f2, f3])**2
-    
-    
-    res = optimize.least_squares(helper, [a, 10., 1.], method="dogbox", tr_solver='exact', jac=lambda x: jacfwd(helper)(jnp.array(x)), bounds=([-np.inf, 0., 0.], np.inf))
-    print(res)
-    if res["cost"] > 1:
-        res = get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5)
-    
-    a, b, l = res["x"]
-    
-    lmbda_tilde = [float(jnp.sqrt(1/(a * D_diag[i] / l + b))) for i in range(l_max_idx)] + [l] + [float(jnp.sqrt(1/(a * D_diag[i] / l + b))) for i in range(l_max_idx+1, dim)]
-
-    return jnp.array(lmbda_tilde)
 
 
 if __name__ == "__main__":
