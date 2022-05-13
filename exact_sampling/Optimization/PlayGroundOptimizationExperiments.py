@@ -34,6 +34,7 @@ if __name__ == "__main__":
     dim_iter = range(10)
     # regular BFGS
     for i in test_problem_iter:
+        print(i)
         for d in dim_iter:
             F_name, x_0, F = PyCutestGetter(func_i=i, dim_i = d, sig=sig, noise_type=noise_type)
             if F is None:

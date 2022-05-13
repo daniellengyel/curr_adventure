@@ -10,7 +10,9 @@ from save_load import save_opt
 from tqdm import tqdm
 
 import sys 
-sys.path.append("/Users/daniellengyel/curr_adventure/exact_sampling/")
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from pow_sampling_set import pow_SG
 
 from Functions import PyCutestGetter
