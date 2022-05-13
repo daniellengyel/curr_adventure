@@ -117,15 +117,15 @@ def create_approx_S(H, sig, coeff, prev_sols=None):
         return S, all_sols
 
 
-def helper_create_approx_S_multi(D_diag, sig, coeff, S, curr_S_pow_index_set, curr_all_pow_U):
-    curr_sing_vals, _ = generate_sing_vals_V(D_diag[curr_S_pow_index_set], sig, coeff)
+def helper_create_approx_S_multi(D_diag, sig, coeff, max_h, S, curr_S_pow_index_set, curr_all_pow_U):
+    curr_sing_vals, _ = generate_sing_vals_V(D_diag[curr_S_pow_index_set], sig, coeff, max_h)
     curr_U = permute_rows(np.array(curr_all_pow_U), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
     curr_pow_S = np.array(curr_sing_vals @ curr_U)
     S[curr_S_pow_index_set.reshape(-1, 1), curr_S_pow_index_set] = curr_pow_S
     return S
 
 
-def create_approx_S_multi(H, sig, coeff, pool):
+def create_approx_S_multi(H, sig, coeff, max_h, pool):
     dim = H.shape[0] 
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
@@ -141,7 +141,7 @@ def create_approx_S_multi(H, sig, coeff, pool):
     pool_inp = []
     for i in range(len(all_pow_U)):
         if S_pow_index_set[i] is not None:
-            pool_inp.append((D_diag, sig, coeff,  np.zeros(shape=(dim, dim, )), S_pow_index_set[i], all_pow_U[i]))
+            pool_inp.append((D_diag, sig, coeff, max_h, np.zeros(shape=(dim, dim, )), S_pow_index_set[i], all_pow_U[i]))
 
     if len(pool_inp) > 2 and pool is not None:
         res = pool.starmap(helper_create_approx_S_multi, pool_inp)
@@ -161,7 +161,7 @@ class pow_SG:
         self.sig = sig
         self.coeff = coeff
         self.max_h = max_h
-        self.pool = Pool(processes=int(multiprocessing.cpu_count()/2.))
+        self.pool = None # Pool(processes=int(multiprocessing.cpu_count()/2.))
 
     def grad(self, F, X, jrandom_key, H):
 

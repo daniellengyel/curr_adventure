@@ -12,7 +12,9 @@ config.update("jax_enable_x64", True)
 import matplotlib.pyplot as plt
 
 import sys 
-sys.path.append("../")
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from Functions import Quadratic
 
 import pow_sampling_set_comps

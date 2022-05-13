@@ -17,7 +17,9 @@ config.update("jax_enable_x64", True)
 
 
 import sys 
-sys.path.append("../")
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from Functions import PyCutestGetter
 from generate_sing_vals_V import loss_getter
 from simplex_gradient import simplex_gradient

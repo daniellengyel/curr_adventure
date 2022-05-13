@@ -112,7 +112,7 @@ def get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
 
 
 
-def get_lambda_tilde_least_squares(D_diag, sig, coeff, lmbda_star, max_h=1, prev_sol=None):
+def get_lambda_tilde_least_squares(D_diag, sig, coeff, max_h, lmbda_star, prev_sol=None):
     
     dim = len(D_diag)
     a_star = D_diag @ lmbda_star / len(lmbda_star)
@@ -140,7 +140,7 @@ def get_lambda_tilde_least_squares(D_diag, sig, coeff, lmbda_star, max_h=1, prev
     # else:
     if coeff == 0:
         lmbda_tilde, _ = lambda_coeff_zero(D_diag, l_max_idx, sig)
-        lmbda_tilde = jnp.clip(lmbda_tilde, a_max=l_max_idx)
+        lmbda_tilde = jnp.clip(lmbda_tilde, a_max=max_h)
         # print(lmbda_tilde)
         return lmbda_tilde, _
 
@@ -182,10 +182,10 @@ def permute_rows(M, i, j):
 
 
 # # This function may change if we decide to allow for lambda_star solutions. 
-def generate_sing_vals_V(D_diag, sig, coeff, prev_sols=None):
+def generate_sing_vals_V(D_diag, sig, coeff, max_h, prev_sols=None):
     dim = len(D_diag)
     lambda_star = get_lambda_star(dim, sig, coeff)
-    lmbda, curr_sols = get_lambda_tilde_least_squares(D_diag, sig, coeff, lambda_star, prev_sols)
+    lmbda, curr_sols = get_lambda_tilde_least_squares(D_diag, sig, coeff, max_h, lambda_star, prev_sols)
     sing_vals = jnp.diag(lmbda**0.5)
     V = jnp.eye(dim)
 
