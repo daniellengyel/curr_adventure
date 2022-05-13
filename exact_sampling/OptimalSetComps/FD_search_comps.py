@@ -1,8 +1,9 @@
 import jax.numpy as jnp
 import jax.random as jrandom
 import sys
-sys.path.append("..")
-
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from FD_search import get_best_S
 
 def get_sampling_set_loss(F, x_0, jrandom_key, loss):

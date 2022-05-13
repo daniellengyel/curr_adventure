@@ -8,8 +8,9 @@ import jax.random as jrandom
 from tqdm import tqdm
 
 import sys 
-sys.path.append("..")
-
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from Functions import PyCutestGetter
 
 class NEWUOA_Wrapper:

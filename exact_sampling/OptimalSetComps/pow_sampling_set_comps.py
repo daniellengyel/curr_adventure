@@ -8,7 +8,9 @@ config.update("jax_enable_x64", True)
 import time
 
 import sys 
-sys.path.append("../")
+import os 
+HOME = os.getenv("HOME")
+sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from pow_sampling_set import create_approx_S
 
 
