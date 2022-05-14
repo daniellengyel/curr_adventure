@@ -1,6 +1,10 @@
 #!/bin/bash
-#PBS -lselect=1:ncpus=1:mem=96gb
-#PBS -lwalltime=00:30:00
+#PBS -lselect=1:ncpus=6:mem=96gb
+#PBS -lwalltime=12:00:00
+#PBS -J 1-10
+
+export NUM_CPU="6"
+export OPT_TYPES="Our_GD"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
 export PATH_TO_ADV_FOLDER=$HOME/new_adventure

@@ -157,11 +157,11 @@ def create_approx_S_multi(H, sig, coeff, max_h, pool):
     return S
 
 class pow_SG:
-    def __init__(self, sig, coeff=1, max_h=2):
+    def __init__(self, sig, coeff=1, max_h=2, NUM_CPU=1):
         self.sig = sig
         self.coeff = coeff
         self.max_h = max_h
-        self.pool = None # Pool(processes=int(multiprocessing.cpu_count()/2.))
+        self.pool = Pool(processes=int(NUM_CPU))
 
     def grad(self, F, X, jrandom_key, H):
 

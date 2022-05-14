@@ -41,10 +41,9 @@ class OptimizationBlueprint:
         vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, 0))
         x_arr.append(X)
 
-        for t in tqdm(range(self.loop_steps_remaining)): # self.loop_steps_remaining > 0:
+        for t in range(self.loop_steps_remaining): # self.loop_steps_remaining > 0:
             # self.loop_steps_remaining -= 1
             
-            start_time = time.time()
             # get search direction
             self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
             search_direction, f1, num_func_calls = self.step_getter(X, subkey)
@@ -66,9 +65,6 @@ class OptimizationBlueprint:
             alpha, num_func_calls = self.linesearch(X, f1, search_direction, self.sig, subkey) 
             total_func_calls += num_func_calls
 
-            print("get grad", time.time() - start_time)
-            start_time = time.time()
-
             # update step
             X = X + alpha * search_direction
 
@@ -76,22 +72,11 @@ class OptimizationBlueprint:
             self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
             num_func_calls = self.post_step(X, subkey)
             total_func_calls += num_func_calls
-            print("update time", time.time() - start_time)
-            start_time = time.time()
             vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if vals_arr[-1][-1] > 1e10:
                 break
-
-            print("append time", time.time() - start_time)
-
-            break
-            
-
-
-
-            
 
         self.reset()
         return X, jnp.array(vals_arr), jnp.array(x_arr)
