@@ -3,7 +3,8 @@ import jax.random as jrandom
 from Optimization import BFGS, GradientDescent, NewtonMethod
 from pdfo import newuoa
 
-
+from jax.config import config
+config.update("jax_enable_x64", True)
 
 from save_load import save_opt
 from tqdm import tqdm
@@ -72,8 +73,10 @@ def run_our_GD(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, 
     noise_type = F.noise_type
 
     grad_getter = pow_SG(sig, coeff=coeff, max_h=max_h, NUM_CPU=NUM_CPU)
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)
+    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)    
     final_X, our_res, our_res_X = optimizer.run_opt()
+    if grad_getter.pool is not None:
+        grad_getter.pool.close()
     save_opt(our_res, our_res_X, "OurMethod_GD", F_name, dim, sig, noise_type, c1, c2, seed, {"coeff":coeff, "max_h":max_h})
 
 
@@ -117,7 +120,7 @@ if __name__ == "__main__":
 
     OPT_TYPES = os.getenv("OPT_TYPES").split(" ")
 
-    sig = 10
+    sig = 20
     noise_type="uniform"
 
     c1 = 0.1
@@ -138,11 +141,12 @@ if __name__ == "__main__":
 
 
     # Newtons Method
+    newton_sig = 0
     if "Newton" in OPT_TYPES:
         print("++++++ Newtons Method ++++++")
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
-                F_name, x_0, F = PyCutestGetter(func_i=f_i, dim_i=d_i, sig=sig, noise_type=noise_type)
+                F_name, x_0, F = PyCutestGetter(func_i=f_i, dim_i=d_i, sig=newton_sig, noise_type=noise_type)
                 
                 if F is None:
                     break
@@ -152,16 +156,17 @@ if __name__ == "__main__":
 
                 jrandom_key = jrandom.PRNGKey(seed=seed)
 
-                optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose=verbose)
+                optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, newton_sig, jrandom_key, grad_eps, verbose=verbose)
                 final_X, exact_res, exact_res_X = optimizer.run_opt()
-                save_opt(exact_res, exact_res_X, "NewtonsMethod", F_name, len(x_0), sig, noise_type, c1, c2, seed)
+                save_opt(exact_res, exact_res_X, "NewtonsMethod", F_name, len(x_0), newton_sig, noise_type, c1, c2, seed)
 
     # Gradient Descent
+    GD_sig = 0
     if "GD" in OPT_TYPES:
         print("++++++ Gradient Descent ++++++")
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
-                F_name, x_0, F = PyCutestGetter(func_i=f_i, dim_i=d_i, sig=sig, noise_type=noise_type)
+                F_name, x_0, F = PyCutestGetter(func_i=f_i, dim_i=d_i, sig=0, noise_type=noise_type)
                 
                 if F is None:
                     break
@@ -171,9 +176,9 @@ if __name__ == "__main__":
 
                 jrandom_key = jrandom.PRNGKey(seed=seed)
 
-                optimizer = GradientDescent(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose=verbose)
+                optimizer = GradientDescent(x_0, F, c1, c2, num_total_steps, GD_sig, jrandom_key, grad_eps, verbose=verbose)
                 final_X, exact_res, exact_res_X = optimizer.run_opt()
-                save_opt(exact_res, exact_res_X, "GradientDescent", F_name, len(x_0), sig, noise_type, c1, c2, seed)
+                save_opt(exact_res, exact_res_X, "GradientDescent", F_name, len(x_0), GD_sig, noise_type, c1, c2, seed)
 
 
     # adaptive FD
@@ -198,7 +203,7 @@ if __name__ == "__main__":
     # Forward FD
     if "FD_GD" in OPT_TYPES:
         print("++++++ FD ++++++")
-        h = 0.1
+        h = 0.5
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -219,8 +224,8 @@ if __name__ == "__main__":
 
     # Central FD
     if "CFD_GD" in OPT_TYPES:
-        print("++++++ FD ++++++")
-        h = 0.5
+        print("++++++ CFD ++++++")
+        h = 1
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -242,9 +247,9 @@ if __name__ == "__main__":
 
     # Our Method
     if "Our_GD" in OPT_TYPES:
-        print("++++`++ Our Method ++++++")
+        print("++++++ Our Method ++++++")
         coeff = 0
-        max_h = 2
+        max_h = 0.5
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -280,5 +285,9 @@ if __name__ == "__main__":
                 
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
+
+                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
+                for inp in inp_list:
+                    run_NEWUOA(*inp)
 
 

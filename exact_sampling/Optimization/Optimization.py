@@ -59,6 +59,9 @@ class OptimizationBlueprint:
                 print("Obj", self.F.f(X))
                 print("Grad norm", jnp.linalg.norm(f1))
                 print()
+
+            if self.F.f(X) == float("inf"):
+                break
             
             # do line search
             self.jrandom_key, subkey = jrandom.split(self.jrandom_key)

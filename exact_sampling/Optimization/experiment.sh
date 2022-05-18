@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -lselect=1:ncpus=6:mem=96gb
-#PBS -lwalltime=12:00:00
+#PBS -lselect=1:ncpus=1:mem=32gb
+#PBS -lwalltime=03:00:00
 #PBS -J 1-10
 
-export NUM_CPU="6"
-export OPT_TYPES="Our_GD"
+export NUM_CPU="1"
+export OPT_TYPES="FD_GD CFD_GD"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
 export PATH_TO_ADV_FOLDER=$HOME/new_adventure
@@ -26,3 +26,4 @@ export PYCUTEST_CACHE="${HOME}/CUTEst/pycutest_cache"
 
 
 python $HOME/curr_adventure/exact_sampling/Optimization/OptimizationExperiments.py
+# python $HOME/curr_adventure/exact_sampling/Optimization/rename_files.py

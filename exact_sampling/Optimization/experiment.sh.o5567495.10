@@ -1,0 +1,28 @@
+++++++ FD ++++++
+F Name AIRCRFTB
+F Dim 5
+45
+46
+47
+48
+49
+F Name ALLINITU
+F Dim 4
+45
+46
+47
+48
+49
+F Name ARWHEAD
+F Dim 100
+45
+
+============================================
+
+        Job resource usage summary 
+
+                 Memory (GB)    NCPUs
+ Requested  :        32             1
+ Used       :         0 (peak)   0.12 (ave)
+
+============================================

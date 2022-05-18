@@ -161,7 +161,10 @@ class pow_SG:
         self.sig = sig
         self.coeff = coeff
         self.max_h = max_h
-        self.pool = Pool(processes=int(NUM_CPU))
+        if NUM_CPU == 1:
+            self.pool = None
+        else:
+            self.pool = Pool(processes=int(NUM_CPU))
 
     def grad(self, F, X, jrandom_key, H):
 
