@@ -1,20 +1,0 @@
-WARNING:absl:No GPU/TPU found, falling back to CPU. (Set TF_CPP_MIN_LOG_LEVEL=0 and rerun for more info.)
-  0%|          | 0/80 [00:00<?, ?it/s]
-  0%|          | 0/10 [00:00<?, ?it/s][A
- 10%|█         | 1/10 [00:04<00:38,  4.24s/it][A 10%|█         | 1/10 [00:04<00:38,  4.24s/it]
-  1%|▏         | 1/80 [00:04<05:35,  4.24s/it]
-  0%|          | 0/10 [00:00<?, ?it/s][A
- 10%|█         | 1/10 [00:04<00:37,  4.14s/it][A 10%|█         | 1/10 [00:04<00:37,  4.14s/it]
-  2%|▎         | 2/80 [00:08<05:26,  4.18s/it]
-  0%|          | 0/10 [00:00<?, ?it/s][A  0%|          | 0/10 [00:08<?, ?it/s]
-  2%|▎         | 2/80 [00:16<10:39,  8.20s/it]
-Traceback (most recent call last):
-  File "/rds/general/user/dl2119/home/curr_adventure/exact_sampling/Optimization/OptimizationExperiments.py", line 221, in <module>
-    run_FD_GD(*inp)
-  File "/rds/general/user/dl2119/home/curr_adventure/exact_sampling/Optimization/OptimizationExperiments.py", line 116, in run_FD_GD
-    save_opt(FD_res, FD_res_X, save_name, F_name, dim, sig, noise_type, c1, c2, seed, {"h": h})
-  File "/rds/general/user/dl2119/home/curr_adventure/exact_sampling/Optimization/save_load.py", line 19, in save_opt
-    os.makedirs(save_dir_path + "/" + save_name)
-  File "/rds/general/user/dl2119/home/miniconda3/envs/simplex_grad/lib/python3.10/os.py", line 225, in makedirs
-    mkdir(name, mode)
-FileExistsError: [Errno 17] File exists: '/rds/general/user/dl2119/home/curr_adventure/exact_sampling/OptimizationResults/FD_GD/ARWHEAD_100/uniform_20_0.1_0.9_h_0.5'

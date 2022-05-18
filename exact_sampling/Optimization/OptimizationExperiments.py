@@ -120,14 +120,14 @@ if __name__ == "__main__":
 
     OPT_TYPES = ["Our_GD"] # os.getenv("OPT_TYPES").split(" ")
 
-    sig = 20
+    sig = 10
     noise_type="uniform"
 
     c1 = 0.1
     c2 = 0.9
     num_total_steps = 50
     grad_eps = 1e-5
-    seed = 0
+    seed = 1
 
     jrandom_key = jrandom.PRNGKey(seed)
 
@@ -249,7 +249,7 @@ if __name__ == "__main__":
     if "Our_GD" in OPT_TYPES:
         print("++++++ Our Method ++++++")
         coeff = 0
-        max_h = 0.5
+        max_h = 0.2
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):

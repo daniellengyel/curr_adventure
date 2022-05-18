@@ -7,17 +7,15 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 class OptimizationBlueprint:
-    def __init__(self, x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False, x_opt=None):
+    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False, x_opt=None):
         self.jrandom_key = jrandom_key
 
-        self.c1 = c1
-        self.c2 = c2
+        self.step_size = step_size
 
         self.sig = sig
 
         self.F = F
 
-        self.linesearch = helper_linesearch(self.F, self.c1, self.c2)
         self.loop_steps_remaining = num_total_steps
         self.num_total_steps = num_total_steps
         self.grad_eps = grad_eps
@@ -63,13 +61,8 @@ class OptimizationBlueprint:
             if self.F.f(X) == float("inf"):
                 break
             
-            # do line search
-            self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
-            alpha, num_func_calls = self.linesearch(X, f1, search_direction, self.sig, subkey) 
-            total_func_calls += num_func_calls
-
             # update step
-            X = X + alpha * search_direction
+            X = X + self.step_size * search_direction
 
             # clean up after update (i.e. BFGS update)
             self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
@@ -96,8 +89,8 @@ class OptimizationBlueprint:
 
 
 class BFGS(OptimizationBlueprint):
-    def __init__(self, x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False):
-        super().__init__(x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose)
+    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
         # self.H_inv = jnp.linalg.inv(F.f2(x_init)) 
         # self.H_inv = jnp.diag(jnp.diag(jnp.linalg.inv(F.f2(x_init)) ))
         # print(self.H_inv)
@@ -178,8 +171,8 @@ class BFGS(OptimizationBlueprint):
 
 
 class NewtonMethod(OptimizationBlueprint):
-    def __init__(self, x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False):
-        super().__init__(x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose)
+    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
         self.sig = 0
         self.grad_curr = None
     
@@ -190,8 +183,8 @@ class NewtonMethod(OptimizationBlueprint):
         return -jnp.linalg.inv(f2).dot(f1), f1, 2
 
 class GradientDescent(OptimizationBlueprint):
-    def __init__(self, x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False):
-        super().__init__(x_init, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose)
+    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
         self.sig = 0
         self.grad_curr = None
     
@@ -199,42 +192,6 @@ class GradientDescent(OptimizationBlueprint):
         f1 = self.F.f1(X)
         self.grad_curr = f1
         return -f1, f1, 2 
-
-
-def helper_linesearch(F, c1, c2):
-
-    def helper(x_0, f1_x_0, search_direction, sig, jrandom_key):
-        num_func_calls = 0
-        num_func_call_limit = 100
-
-        f0 = F.f(x_0) # we do not count this call, because it has already been done in the grad_stepper.
-        dg = jnp.inner(search_direction, f1_x_0)
-
-        if dg >= - sig * jnp.linalg.norm(search_direction):
-            c1_is_zero = 0
-        else:
-            c1_is_zero = 1
-
-        def armijo_rule(alpha, c1_is_zero, is_sig_term, jrandom_key):
-            return F.f(x_0 + alpha * search_direction, jrandom_key) > f0 + c1_is_zero * c1*alpha*dg + is_sig_term * 2 * sig
-        
-        def armijo_update(alpha):
-            return c2*alpha
-            
-        alpha = 1
-        jrandom_key, subkey = jrandom.split(jrandom_key)
-        is_sig_term = 0
-        while armijo_rule(alpha, c1_is_zero, is_sig_term, subkey) and num_func_calls < num_func_call_limit:
-            num_func_calls += 1
-            jrandom_key, subkey = jrandom.split(jrandom_key)
-            alpha = armijo_update(alpha)
-            is_sig_term = 1
-
-        num_func_calls += 1
-
-        return alpha, num_func_calls
-
-    return helper
 
 
 
