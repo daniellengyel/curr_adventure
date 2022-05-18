@@ -23,14 +23,14 @@ from NEWUO_test import NEWUOA_Wrapper
 from multiprocessing import Pool
 import multiprocessing
 
-NUM_CPU = int(os.getenv("NUM_CPU"))
-ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
+NUM_CPU = 1 # int(os.getenv("NUM_CPU"))
+ARRAY_INDEX = 1 # os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
     ARRAY_INDEX = int(ARRAY_INDEX)
     
-NUM_ARRAY = 10
+NUM_ARRAY = 1
 
 def run_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose, param_dict={}):
     jrandom_key = jrandom.PRNGKey(seed=seed)
@@ -115,9 +115,9 @@ def run_FD_GD(F_name, x_0, sig, noise_type, grad_eps, h, c1, c2, num_total_steps
 
 if __name__ == "__main__":
 
-    OPT_TYPES = os.getenv("OPT_TYPES").split(" ")
+    OPT_TYPES = ["Our_GD"] # os.getenv("OPT_TYPES").split(" ")
 
-    sig = 10
+    sig = 1
     noise_type="uniform"
 
     c1 = 0.1
@@ -128,10 +128,10 @@ if __name__ == "__main__":
 
     jrandom_key = jrandom.PRNGKey(seed)
 
-    verbose = False
+    verbose = True
 
-    test_problem_iter = range(0, 80)
-    dim_iter = range(10)
+    test_problem_iter = range(11, 12)
+    dim_iter = range(0, 10)
 
     num_trials = 50
     lower_seed, upper_seed = int(num_trials / NUM_ARRAY) * (ARRAY_INDEX - 1), min(int(num_trials / NUM_ARRAY) * (ARRAY_INDEX ), num_trials)
