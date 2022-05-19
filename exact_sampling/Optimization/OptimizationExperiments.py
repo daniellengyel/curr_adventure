@@ -33,24 +33,31 @@ else:
     
 NUM_ARRAY = 1
 
-def run_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose, param_dict={}):
+def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
+    sprint(seed)
     jrandom_key = jrandom.PRNGKey(seed=seed)
     dim = len(x_0)
-
-    F_name, x_0, F = PyCutestGetter(func_name=F_name, func_dim=len(x_0), sig=sig, noise_type=noise_type)
     
-    if opt_type == "NEWUOA":
-        curr_F_inst = NEWUOA_Wrapper(F, jrandom_key)
-        curr_F = lambda X: float(curr_F_inst.f(X))
+    F_name, x_0, F = PyCutestGetter(func_name=F_name, func_dim=len(x_0), sig=sig, noise_type=noise_type)
 
-        newuoa_full_res = newuoa(curr_F, x_0) 
-        newuoa_res = newuoa_full_res["fhist"]
-        
-        
-        
-    save_opt(newuoa_res, None, "NEWUOA", F_name, dim, sig, noise_type, c1, c2, seed, param_dict)
+    sig = F.sig
+    noise_type = F.noise_type
 
-def run_NEWUOA(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose):
+    if opt_type == "OurMethod_GD":
+        grad_getter = pow_SG(sig, h=param_dict["h"], NUM_CPU=1)
+    elif opt_type == "CFD_GD":
+        grad_getter = FD(sig, is_central=True, h=param_dict["h"]) 
+    elif opt_type == "FD_GD":
+        grad_getter = FD(sig, is_central=False, h=param_dict["h"]) 
+    elif opt_type == "AdaptFD_GD":
+        grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
+
+    optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)    
+    final_X, res, res_X = optimizer.run_opt()
+    save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, param_dict)
+        
+        
+def run_NEWUOA(F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose):
     jrandom_key = jrandom.PRNGKey(seed=seed)
     dim = len(x_0)
 
@@ -60,80 +67,23 @@ def run_NEWUOA(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, 
 
     newuoa_full_res = newuoa(curr_F, x_0) 
     newuoa_res = newuoa_full_res["fhist"]
-    save_opt(newuoa_res, None, "NEWUOA", F_name, dim, sig, noise_type, c1, c2, seed)
-
-def run_our_GD(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose, coeff, max_h, NUM_CPU):
-    print(seed)
-    jrandom_key = jrandom.PRNGKey(seed=seed)
-    dim = len(x_0)
-    
-    F_name, x_0, F = PyCutestGetter(func_name=F_name, func_dim=len(x_0), sig=sig, noise_type=noise_type)
-
-    sig = F.sig
-    noise_type = F.noise_type
-
-    grad_getter = pow_SG(sig, coeff=coeff, max_h=max_h, NUM_CPU=NUM_CPU)
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)    
-    final_X, our_res, our_res_X = optimizer.run_opt()
-    if grad_getter.pool is not None:
-        grad_getter.pool.close()
-    save_opt(our_res, our_res_X, "OurMethod_GD", F_name, dim, sig, noise_type, c1, c2, seed, {"coeff":coeff, "max_h":max_h})
-
-
-def run_adaptive_GD(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose):
-    print(seed)
-    jrandom_key = jrandom.PRNGKey(seed=seed)
-    dim = len(x_0)
-    
-    F_name, x_0, F = PyCutestGetter(func_name=F_name, func_dim=len(x_0), sig=sig, noise_type=noise_type)
-
-    sig = F.sig
-    noise_type = F.noise_type
-
-    grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)
-    final_X, adaptFD_res, adaptFD_res_X = optimizer.run_opt()
-    save_opt(adaptFD_res, adaptFD_res_X, "AdaptFD_GD", F_name, dim, sig, noise_type, c1, c2, seed)
-
-
-def run_FD_GD(F_name, x_0, sig, noise_type, grad_eps, h, c1, c2, num_total_steps, seed, verbose, is_central):
-    print(seed)
-    jrandom_key = jrandom.PRNGKey(seed=seed)
-    dim = len(x_0)
-    
-    F_name, x_0, F = PyCutestGetter(func_name=F_name, func_dim=len(x_0), sig=sig, noise_type=noise_type)
-
-    sig = F.sig
-    noise_type = F.noise_type
-    grad_getter = FD(sig, is_central=is_central, h=h) 
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)
-    final_X, FD_res, FD_res_X = optimizer.run_opt()
-    if is_central:
-        save_name = "CentralFD_GD"
-    else:
-        save_name = "FD_GD"
-
-    save_opt(FD_res, FD_res_X, save_name, F_name, dim, sig, noise_type, c1, c2, seed, {"h": h})
+    save_opt(newuoa_res, None, "NEWUOA", F_name, dim, sig, noise_type, step_size, seed)
 
 
 if __name__ == "__main__":
 
-    OPT_TYPES = ["Our_GD"] # os.getenv("OPT_TYPES").split(" ")
+    OPT_TYPES = os.getenv("OPT_TYPES").split(" ")
 
-    sig = 10
+    sig = float(os.getenv("SIG"))
+    step_size = float(os.getenv("STEP_SIZE"))
     noise_type="uniform"
 
-    c1 = 0.1
-    c2 = 0.9
     num_total_steps = 50
     grad_eps = 1e-5
-    seed = 1
 
-    jrandom_key = jrandom.PRNGKey(seed)
+    verbose = False
 
-    verbose = True
-
-    test_problem_iter = range(11, 12)
+    test_problem_iter = range(85)
     dim_iter = range(0, 10)
 
     num_trials = 50
@@ -154,11 +104,9 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                jrandom_key = jrandom.PRNGKey(seed=seed)
-
-                optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, newton_sig, jrandom_key, grad_eps, verbose=verbose)
+                optimizer = NewtonMethod(x_0, F, step_size, num_total_steps, newton_sig, None, grad_eps, verbose=verbose)
                 final_X, exact_res, exact_res_X = optimizer.run_opt()
-                save_opt(exact_res, exact_res_X, "NewtonsMethod", F_name, len(x_0), newton_sig, noise_type, c1, c2, seed)
+                save_opt(exact_res, exact_res_X, "NewtonsMethod", F_name, len(x_0), newton_sig, noise_type, step_size, None)
 
     # Gradient Descent
     GD_sig = 0
@@ -174,11 +122,9 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                jrandom_key = jrandom.PRNGKey(seed=seed)
-
-                optimizer = GradientDescent(x_0, F, c1, c2, num_total_steps, GD_sig, jrandom_key, grad_eps, verbose=verbose)
+                optimizer = GradientDescent(x_0, F, step_size, num_total_steps, GD_sig, None, grad_eps, verbose=verbose)
                 final_X, exact_res, exact_res_X = optimizer.run_opt()
-                save_opt(exact_res, exact_res_X, "GradientDescent", F_name, len(x_0), GD_sig, noise_type, c1, c2, seed)
+                save_opt(exact_res, exact_res_X, "GradientDescent", F_name, len(x_0), GD_sig, noise_type, step_size, None)
 
 
     # adaptive FD
@@ -195,9 +141,9 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("AdaptFD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
-                    run_adaptive_GD(*inp)
+                    run_gd_approx_exp(*inp)
 
 
     # Forward FD
@@ -216,9 +162,9 @@ if __name__ == "__main__":
                 print("F Dim", len(x_0))
 
                 is_central = False
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, h, c1, c2, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("FD_GD", F_name, x_0, sig, noise_type, grad_eps, h, step_size, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
-                    run_FD_GD(*inp)
+                    run_gd_approx_exp(*inp)
 
 
 
@@ -238,11 +184,9 @@ if __name__ == "__main__":
                 print("F Dim", len(x_0))
 
                 is_central = True
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, h, c1, c2, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("CFD_GD", F_name, x_0, sig, noise_type, grad_eps, h, step_size, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
-                    run_FD_GD(*inp)
-
-
+                    run_gd_approx_exp(*inp)
 
 
     # Our Method
@@ -261,10 +205,10 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose, coeff, max_h, NUM_CPU) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("Our_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, coeff, max_h, NUM_CPU) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     try:
-                        run_our_GD(*inp)
+                        run_gd_approx_exp(*inp)
                     except:
                         continue
 
@@ -272,7 +216,6 @@ if __name__ == "__main__":
 
     
 
-        
     # NEWUOA
     if "NEWUOA" in OPT_TYPES:
         print("++++++ NEWUOA ++++++")
@@ -286,7 +229,7 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, c1, c2, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
+                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     run_NEWUOA(*inp)
 

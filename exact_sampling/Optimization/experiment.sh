@@ -1,10 +1,12 @@
 #!/bin/bash
 #PBS -lselect=1:ncpus=1:mem=32gb
 #PBS -lwalltime=03:00:00
-#PBS -J 1-10
+##PBS -J 1-10
 
 export NUM_CPU="1"
-export OPT_TYPES="FD_GD CFD_GD"
+export OPT_TYPES="GD Newton"
+export SIG="0.1"
+export STEP_SIZE="0.0001"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
 export PATH_TO_ADV_FOLDER=$HOME/new_adventure

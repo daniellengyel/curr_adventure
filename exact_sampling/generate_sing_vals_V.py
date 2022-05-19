@@ -85,6 +85,20 @@ def lambda_coeff_zero(D_diag, l_max_idx, sig):
     lmbdas[jnp.argmin(jnp.abs(D_diag))] = l
     
     return jnp.array(lmbdas), [a, 0, l]
+
+def lambda_coeff_zero_set_max_lambda(D_diag, l_max, l_max_idx, sig):
+    dim = len(D_diag)
+    D_diag = jnp.abs(D_diag)
+    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_diag[l_max_idx])
+    D_l_max_idx = D_diag[l_max_idx]
+
+    D_l_max_idx * l_max + dim * ((-D_l_max_idx**3 * l_max**3))
+
+
+    lmbdas = [(sig * jnp.sqrt(2*l/(D_diag[i] * a))) for i in range(len(D_diag))]
+    lmbdas[jnp.argmin(jnp.abs(D_diag))] = l
+    
+    return jnp.array(lmbdas), [a, 0, l_max]
     
 def get_lambda_tilde(D_diag, sig, coeff, lmbda_star, eps_bound=1e-5):
     dim = len(D_diag)

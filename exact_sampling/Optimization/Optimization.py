@@ -39,12 +39,15 @@ class OptimizationBlueprint:
         vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, 0))
         x_arr.append(X)
 
-        for t in range(self.loop_steps_remaining): # self.loop_steps_remaining > 0:
-            # self.loop_steps_remaining -= 1
+        for t in range(self.loop_steps_remaining):
+
             
             # get search direction
-            self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
-            search_direction, f1, num_func_calls = self.step_getter(X, subkey)
+            if self.jrandom_key is not None:
+                self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
+                search_direction, f1, num_func_calls = self.step_getter(X, subkey)
+            else:
+                search_direction, f1, num_func_calls = self.step_getter(X)
             total_func_calls += num_func_calls
 
             if jnp.linalg.norm(f1)/self.dim < self.grad_eps:
@@ -65,8 +68,11 @@ class OptimizationBlueprint:
             X = X + self.step_size * search_direction
 
             # clean up after update (i.e. BFGS update)
-            self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
-            num_func_calls = self.post_step(X, subkey)
+            if self.jrandom_key is not None:
+                self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
+                num_func_calls = self.post_step(X, subkey)
+            else:
+                num_func_calls = self.post_step(X)
             total_func_calls += num_func_calls
             vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
@@ -78,10 +84,10 @@ class OptimizationBlueprint:
         return X, jnp.array(vals_arr), jnp.array(x_arr)
 
 
-    def step_getter(self, X, jrandom_key):
+    def step_getter(self, X, jrandom_key=None):
         pass
 
-    def post_step(self, X, jrandom_key):
+    def post_step(self, X, jrandom_key=None):
         return 0
 
     def reset(self):
@@ -91,13 +97,8 @@ class OptimizationBlueprint:
 class BFGS(OptimizationBlueprint):
     def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False):
         super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
-        # self.H_inv = jnp.linalg.inv(F.f2(x_init)) 
-        # self.H_inv = jnp.diag(jnp.diag(jnp.linalg.inv(F.f2(x_init)) ))
-        # print(self.H_inv)
-
 
         self.H_inv = jnp.eye(self.dim)
-        # self.H_inv = jnp.linalg.inv(F.f2(x_init)) 
 
         self.X_prev = None
         self.grad_curr = None
@@ -109,16 +110,12 @@ class BFGS(OptimizationBlueprint):
     def step_getter(self, X, jrandom_key):
         num_func_calls = 0
         self.X_prev = X.copy()
-        # print("pre true", jnp.linalg.eig(jnp.linalg.inv(self.F.f2(X)))[0])
         if self.grad_curr is None:
             if self.use_exact:
                 self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key, H=self.F.f2(X)) 
             else:
                 self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key, H=jnp.linalg.inv(self.H_inv))
 
-            # print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X)))
-            # print(self.grad_curr)
-            # print(self.F.f1(X))
         f1 = self.grad_curr
 
         return -f1, f1, num_func_calls
@@ -132,15 +129,11 @@ class BFGS(OptimizationBlueprint):
         else:
             self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key,  H=jnp.linalg.inv(self.H_inv))
 
-        # print(self.grad_curr)
-        # print(self.F.f1(X))
-        # print("pre", jnp.linalg.eig(self.H_inv)[0]) 
         if self.use_exact:
             self.H_inv = jnp.linalg.inv(self.F.f2(X))
         else:
             self.H_inv = self.BFGS_update(self.X_prev, X, prev_grad, self.grad_curr, self.H_inv)
-        # print("post", jnp.linalg.eig(self.H_inv)[0])
-        # print("post true", jnp.linalg.eig(jnp.linalg.inv(self.F.f2(X)))[0])
+
         if self.verbose:
             print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
             print("H diff", jnp.linalg.norm(self.H_inv - jnp.linalg.inv(self.F.f2(X)))/jnp.linalg.norm(jnp.linalg.inv(self.F.f2(X))))
