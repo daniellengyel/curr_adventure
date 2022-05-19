@@ -24,35 +24,34 @@ def lmbda_loss(lmbdas, D_diag, sig, coeff, l_max_idx):
     b = jnp.sum(lmbdas)
     return 1/4 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas) + coeff*b**2
 
-def lambda_coeff_zero(D_diag, l_max_idx, sig):
+def lambda_coeff_zero(D_diag, sig):
     dim = len(D_diag)
     D_diag = jnp.abs(D_diag)
-    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_diag[l_max_idx])
-    D_l_max_idx = D_diag[l_max_idx]
-    numerator = 2 * (1 + dim) * D_l_max_idx * sig**2 + D_sum**2 * sig**2 + jnp.sqrt(D_sum**2 * (8 * (1 + dim) * D_l_max_idx + D_sum**2) * sig**4)
+    D_min = jnp.min(D_diag)
+    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_min)
+    numerator = 2 * (1 + dim) * D_min * sig**2 + D_sum**2 * sig**2 + jnp.sqrt(D_sum**2 * (8 * (1 + dim) * D_min + D_sum**2) * sig**4)
     
-    a = jnp.sqrt(2 * numerator/(dim * D_l_max_idx))
-    l = (2 * (1 + dim) * D_l_max_idx * sig**2 + numerator)/(D_l_max_idx**2 * a)
+    a = jnp.sqrt(2 * numerator/(dim * D_min))
+    l = (2 * (1 + dim) * D_min * sig**2 + numerator)/(D_min**2 * a)
 
     lmbdas = [(sig * jnp.sqrt(2*l/(D_diag[i] * a))) for i in range(len(D_diag))]
     lmbdas[jnp.argmin(jnp.abs(D_diag))] = l
     
     return jnp.array(lmbdas)
 
-def lambda_coeff_zero_set_max_lambda(D_diag, l_max, l_max_idx, sig):
+def lambda_coeff_zero_set_max_lambda(D_diag, l_max, sig):
     dim = len(D_diag)
     D_diag = jnp.abs(D_diag)
-    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_diag[l_max_idx])
-    D_min = D_diag[l_max_idx]
+    D_min = jnp.min(D_diag)
+    D_sum = jnp.sum(jnp.sqrt(D_diag)) - jnp.sqrt(D_min)
 
     sqrt_term = 3 * jnp.sqrt(3 * dim) * jnp.sqrt(27 * dim * D_sum**4 * l_max**2 * sig**4 - 2 * D_min**3 * D_sum**2 * l_max**4 * sig**2)
     cbrt_term = jnp.cbrt(sqrt_term + 27 * dim * D_sum**2 * l_max * sig**2 - D_min**3 * l_max**3)/dim
 
     a = (dim * cbrt_term + D_min * l_max)**2 / (3 * dim**2 * cbrt_term)
 
-
     lmbdas = [(sig * jnp.sqrt(2*l_max/(D_diag[i] * a))) for i in range(len(D_diag))]
-    lmbdas[jnp.argmin(jnp.abs(D_diag))] = l_max
+    lmbdas[jnp.argmin(D_diag)] = l_max
     
     return jnp.array(lmbdas)
 
@@ -64,10 +63,9 @@ def permute_rows(M, i, j):
 
 def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)
-    D_diag = jnp.abs(D_diag)
-    lmbda = lambda_coeff_zero(D_diag, jnp.argmin(D_diag), sig)
+    lmbda = lambda_coeff_zero(D_diag, sig)
     if jnp.max(lmbda) > max_h:
-        lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h, jnp.argmin(D_diag), sig)
+        lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h, sig)
     sing_vals = jnp.diag(lmbda**0.5)
     V = jnp.eye(dim)
     

@@ -34,7 +34,6 @@ else:
 NUM_ARRAY = 1
 
 def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
-    sprint(seed)
     jrandom_key = jrandom.PRNGKey(seed=seed)
     dim = len(x_0)
     
@@ -57,7 +56,7 @@ def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_siz
     save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, param_dict)
         
         
-def run_NEWUOA(F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose):
+def run_NEWUOA(F_name, x_0, sig, noise_type, seed):
     jrandom_key = jrandom.PRNGKey(seed=seed)
     dim = len(x_0)
 
@@ -67,6 +66,7 @@ def run_NEWUOA(F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_step
 
     newuoa_full_res = newuoa(curr_F, x_0) 
     newuoa_res = newuoa_full_res["fhist"]
+    step_size = 0
     save_opt(newuoa_res, None, "NEWUOA", F_name, dim, sig, noise_type, step_size, seed)
 
 
@@ -89,6 +89,7 @@ if __name__ == "__main__":
     num_trials = 50
     lower_seed, upper_seed = int(num_trials / NUM_ARRAY) * (ARRAY_INDEX - 1), min(int(num_trials / NUM_ARRAY) * (ARRAY_INDEX ), num_trials)
 
+    h = float(os.getenv("h"))
 
     # Newtons Method
     newton_sig = 0
@@ -149,7 +150,6 @@ if __name__ == "__main__":
     # Forward FD
     if "FD_GD" in OPT_TYPES:
         print("++++++ FD ++++++")
-        h = 0.5
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -162,7 +162,7 @@ if __name__ == "__main__":
                 print("F Dim", len(x_0))
 
                 is_central = False
-                inp_list = [("FD_GD", F_name, x_0, sig, noise_type, grad_eps, h, step_size, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("FD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     run_gd_approx_exp(*inp)
 
@@ -171,7 +171,6 @@ if __name__ == "__main__":
     # Central FD
     if "CFD_GD" in OPT_TYPES:
         print("++++++ CFD ++++++")
-        h = 1
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -184,7 +183,7 @@ if __name__ == "__main__":
                 print("F Dim", len(x_0))
 
                 is_central = True
-                inp_list = [("CFD_GD", F_name, x_0, sig, noise_type, grad_eps, h, step_size, num_total_steps, seed, verbose, is_central) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("CFD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     run_gd_approx_exp(*inp)
 
@@ -192,8 +191,6 @@ if __name__ == "__main__":
     # Our Method
     if "Our_GD" in OPT_TYPES:
         print("++++++ Our Method ++++++")
-        coeff = 0
-        max_h = 0.2
 
         for f_i in tqdm(test_problem_iter):
             for d_i in tqdm(dim_iter):
@@ -205,7 +202,7 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [("Our_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, coeff, max_h, NUM_CPU) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("Our_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     try:
                         run_gd_approx_exp(*inp)
@@ -229,7 +226,7 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [(F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
+                inp_list = [(F_name, x_0, sig, noise_type, seed) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     run_NEWUOA(*inp)
 
