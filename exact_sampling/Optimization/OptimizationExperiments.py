@@ -18,7 +18,7 @@ from pow_sampling_set import pow_SG
 from Functions import PyCutestGetter
 from AdaptiveFD import adapt_FD
 from BFGSFD import BFGSFD 
-from FD_search import FD
+from FD import FD
 from NEWUO_test import NEWUOA_Wrapper
 
 from multiprocessing import Pool
@@ -165,7 +165,6 @@ if __name__ == "__main__":
                 inp_list = [("FD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     run_gd_approx_exp(*inp)
-
 
 
     # Central FD

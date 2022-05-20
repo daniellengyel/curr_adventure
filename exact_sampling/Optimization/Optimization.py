@@ -1,5 +1,6 @@
 import jax.numpy as jnp
-from jax import grad, random as jrandom
+from jax import grad
+from jax import random as jrandom
 import time
 from tqdm import tqdm 
 

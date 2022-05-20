@@ -76,7 +76,7 @@ def permute_rows(M, i, j):
     M[j] = tmp_row
     return M
 
-def create_approx_S(H, sig, coeff, prev_sols=None):
+def create_approx_S(H, sig):
     dim = H.shape[0] 
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
@@ -90,42 +90,28 @@ def create_approx_S(H, sig, coeff, prev_sols=None):
     all_pow_U = generate_all_pow_U(len(S_pow_index_set))
     S = np.zeros(shape=(dim, dim, ))
 
-    if prev_sols == []:
-        prev_sols = [[]] * len(all_pow_U)
-
-    all_sols = []
     for i in range(len(all_pow_U)):
         if S_pow_index_set[i] is not None:
-            if prev_sols is not None:
-                curr_sing_vals, _, curr_sols = generate_sing_vals_V(D_diag[S_pow_index_set[i]], sig, coeff, prev_sols[i])
-            else:
-                curr_sing_vals, _ = generate_sing_vals_V(D_diag[S_pow_index_set[i]], sig, coeff)
-                curr_sols = None
-            all_sols.append(curr_sols)
+            curr_sing_vals, _ = generate_sing_vals_V(D_diag[S_pow_index_set[i]], sig)
             curr_U = permute_rows(np.array(all_pow_U[i]), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
             curr_pow_S = np.array(curr_sing_vals @ curr_U)
             S[S_pow_index_set[i].reshape(-1, 1), S_pow_index_set[i]] = curr_pow_S
-        else:
-            all_sols.append(None)
 
     S = jnp.array(S)
     S = U_D @ S
 
-    if prev_sols is None:
-        return S
-    else: 
-        return S, all_sols
+    return S
 
 
-def helper_create_approx_S_multi(D_diag, sig, coeff, max_h, S, curr_S_pow_index_set, curr_all_pow_U):
-    curr_sing_vals, _ = generate_sing_vals_V(D_diag[curr_S_pow_index_set], sig, coeff, max_h)
+def helper_create_approx_S_multi(D_diag, sig, max_h, S, curr_S_pow_index_set, curr_all_pow_U):
+    curr_sing_vals, _ = generate_sing_vals_V(D_diag[curr_S_pow_index_set], sig, max_h)
     curr_U = permute_rows(np.array(curr_all_pow_U), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
     curr_pow_S = np.array(curr_sing_vals @ curr_U)
     S[curr_S_pow_index_set.reshape(-1, 1), curr_S_pow_index_set] = curr_pow_S
     return S
 
 
-def create_approx_S_multi(H, sig, coeff, max_h, pool):
+def create_approx_S_multi(H, sig, max_h, pool):
     dim = H.shape[0] 
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
@@ -141,14 +127,14 @@ def create_approx_S_multi(H, sig, coeff, max_h, pool):
     pool_inp = []
     for i in range(len(all_pow_U)):
         if S_pow_index_set[i] is not None:
-            pool_inp.append((D_diag, sig, coeff, max_h, np.zeros(shape=(dim, dim, )), S_pow_index_set[i], all_pow_U[i]))
+            pool_inp.append((D_diag, sig, max_h, np.zeros(shape=(dim, dim,)), S_pow_index_set[i], all_pow_U[i]))
 
     if len(pool_inp) > 2 and pool is not None:
         res = pool.starmap(helper_create_approx_S_multi, pool_inp)
     else:
         res = [helper_create_approx_S_multi(*inp) for inp in pool_inp]
 
-    S = np.zeros(shape=(dim, dim, ))
+    S = np.zeros(shape=(dim, dim,))
     for sub_S in res:
         S += sub_S
     S = jnp.array(S)
@@ -157,9 +143,8 @@ def create_approx_S_multi(H, sig, coeff, max_h, pool):
     return S
 
 class pow_SG:
-    def __init__(self, sig, coeff=1, max_h=2, NUM_CPU=1):
+    def __init__(self, sig, max_h=2, NUM_CPU=1):
         self.sig = sig
-        self.coeff = coeff
         self.max_h = max_h
         if NUM_CPU == 1:
             self.pool = None
@@ -172,7 +157,7 @@ class pow_SG:
         if len(x_0.shape) != 1:
             x_0 = x_0.reshape(-1)
 
-        S = create_approx_S_multi(H, self.sig, self.coeff, self.max_h, self.pool) # optimize_uncentered_S(H, self.sig, self.coeff, max_steps=50) #
+        S = create_approx_S_multi(H, self.sig, self.max_h, self.pool)
         return simplex_gradient(F, x_0, S, jrandom_key)
 
 
@@ -186,11 +171,10 @@ if __name__ == "__main__":
     D = jnp.diag(jnp.array([75.25,  -50.5, 25.75, 100, 200, 12, 89]))
     sig = 0.1
     dim = len(D)
-    coeff = 1
     jrandom_key = jrandom.PRNGKey(0)
 
 
-    print(create_approx_S(D, sig, coeff, jrandom_key))
+    print(create_approx_S(D, sig, jrandom_key))
 
 
 

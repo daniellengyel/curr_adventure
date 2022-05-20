@@ -55,11 +55,6 @@ def lambda_coeff_zero_set_max_lambda(D_diag, l_max, sig):
     
     return jnp.array(lmbdas)
 
-def permute_rows(M, i, j):
-    tmp_row = M[i].copy()
-    M[i] = M[j].copy()
-    M[j] = tmp_row
-    return M
 
 def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)

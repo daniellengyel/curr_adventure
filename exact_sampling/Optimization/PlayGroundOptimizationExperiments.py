@@ -13,7 +13,7 @@ sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from pow_sampling_set import pow_SG
 from Functions import PyCutestGetter
 from AdaptiveFD import adapt_FD
-from FD_search import FD
+from FD import FD
 
 from tqdm import tqdm
 
