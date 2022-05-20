@@ -114,6 +114,8 @@ def helper_create_approx_S_multi(D_diag, sig, max_h, S, curr_S_pow_index_set, cu
 def create_approx_S_multi(H, sig, max_h, pool):
     dim = H.shape[0] 
 
+    # print(H)
+
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
     D, U_D = np.linalg.eigh(H)
     U_D = jnp.real(U_D)

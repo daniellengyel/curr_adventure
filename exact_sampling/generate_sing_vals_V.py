@@ -59,8 +59,12 @@ def lambda_coeff_zero_set_max_lambda(D_diag, l_max, sig):
 def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)
     lmbda = lambda_coeff_zero(D_diag, sig)
-    if jnp.max(lmbda) > max_h:
-        lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h, sig)
+    if jnp.max(lmbda) > max_h**2:
+        lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
+
+    if jnp.max(lmbda) > max_h**2:
+        lmbda = max_h**2 * jnp.ones(dim)
+
     sing_vals = jnp.diag(lmbda**0.5)
     V = jnp.eye(dim)
     

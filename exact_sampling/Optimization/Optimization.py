@@ -75,7 +75,7 @@ class OptimizationBlueprint:
             else:
                 num_func_calls = self.post_step(X)
             total_func_calls += num_func_calls
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if vals_arr[-1][-1] > 1e10:
@@ -117,6 +117,10 @@ class BFGS(OptimizationBlueprint):
             else:
                 self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key, H=jnp.linalg.inv(self.H_inv))
 
+            if self.verbose:
+                print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
+                print("H diff", jnp.linalg.norm(self.H_inv - jnp.linalg.inv(self.F.f2(X)))/jnp.linalg.norm(jnp.linalg.inv(self.F.f2(X))))
+            
         f1 = self.grad_curr
 
         return -f1, f1, num_func_calls
@@ -129,6 +133,7 @@ class BFGS(OptimizationBlueprint):
             self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key,  H=self.F.f2(X))
         else:
             self.grad_curr, num_func_calls = self.grad_getter.grad(self.F, X, jrandom_key,  H=jnp.linalg.inv(self.H_inv))
+
 
         if self.use_exact:
             self.H_inv = jnp.linalg.inv(self.F.f2(X))
