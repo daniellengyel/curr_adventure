@@ -143,7 +143,7 @@ def create_approx_S_multi(H, sig, max_h, pool):
     return S
 
 class pow_SG:
-    def __init__(self, sig, max_h=2, NUM_CPU=1):
+    def __init__(self, sig, max_h=0, NUM_CPU=1):
         self.sig = sig
         self.max_h = max_h
         if NUM_CPU == 1:

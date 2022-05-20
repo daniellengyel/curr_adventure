@@ -25,13 +25,13 @@ from multiprocessing import Pool
 import multiprocessing
 
 NUM_CPU = 1 # int(os.getenv("NUM_CPU"))
-ARRAY_INDEX = 1 # os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
     ARRAY_INDEX = int(ARRAY_INDEX)
     
-NUM_ARRAY = 1
+NUM_ARRAY = 10
 
 def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
     jrandom_key = jrandom.PRNGKey(seed=seed)
@@ -43,7 +43,7 @@ def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_siz
     noise_type = F.noise_type
 
     if opt_type == "OurMethod_GD":
-        grad_getter = pow_SG(sig, h=param_dict["h"], NUM_CPU=1)
+        grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
     elif opt_type == "CFD_GD":
         grad_getter = FD(sig, is_central=True, h=param_dict["h"]) 
     elif opt_type == "FD_GD":
@@ -201,14 +201,14 @@ if __name__ == "__main__":
                 print("F Name", F_name)
                 print("F Dim", len(x_0))
 
-                inp_list = [("Our_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
+                inp_list = [("OurMethod_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
                 for inp in inp_list:
                     try:
                         run_gd_approx_exp(*inp)
                     except:
                         continue
 
-                    # run_our_GD(*inp)
+                    # run_gd_approx_exp(*inp)
 
     
 

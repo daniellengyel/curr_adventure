@@ -3,8 +3,8 @@
 #PBS -lwalltime=12:00:00
 #PBS -J 1-10
 
-export OPT_TYPES="Our_GD"
-export SIG="10"
+export OPT_TYPES="AdaptFD_GD"
+export SIG="20"
 export STEP_SIZE="1e-6"
 export h="0.1"
 
@@ -28,4 +28,3 @@ export PYCUTEST_CACHE="${HOME}/CUTEst/pycutest_cache"
 
 
 python $HOME/curr_adventure/exact_sampling/Optimization/OptimizationExperiments.py
-# python $HOME/curr_adventure/exact_sampling/Optimization/rename_files.py
