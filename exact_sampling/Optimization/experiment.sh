@@ -3,10 +3,10 @@
 #PBS -lwalltime=12:00:00
 #PBS -J 1-10
 
-export OPT_TYPES="AdaptFD_GD"
-export SIG="20"
-export STEP_SIZE="1e-6"
-export h="0.1"
+export OPT_TYPES="FD_GD CFD_GD"
+export SIG="1"
+export STEP_SIZE="1e-5"
+export h="1"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
 export PATH_TO_ADV_FOLDER=$HOME/new_adventure

@@ -6,25 +6,29 @@ from tqdm import tqdm
 def save_seeds_to_all(exp_path, seeds):
     d_vals = {}
     d_x_data = {}
-    try:
-        if os.path.exists(exp_path + '/all'):
-            with open(exp_path + '/all/all_vals.pkl', "rb") as f:
-                d_vals = pickle.load(f)
-            with open(exp_path + '/all/all_x_data.pkl', "rb") as f:
-                d_x_data = pickle.load(f)
-    except:
-        d_vals = {}
-        d_x_data = {}
+    # try:
+    if os.path.exists(exp_path + '/all'):
+        with open(exp_path + '/all/all_vals.pkl', "rb") as f:
+            d_vals = pickle.load(f)
+        with open(exp_path + '/all/all_x_data.pkl', "rb") as f:
+            d_x_data = pickle.load(f)
+    # except:
+    #     d_vals = {}
+    #     d_x_data = {}
 
     for seed in seeds:
-        if seed not in d_vals:
+        if (seed not in d_vals) or (seed not in d_x_data):
             try:
                 with open(exp_path + '/seed_{}'.format(seed) + "/vals.pkl", "rb") as f:
                     d_vals[seed] = pickle.load(f)
+
                 with open(exp_path + '/seed_{}'.format(seed) + "/x_data.pkl", "rb") as f:
                     d_x_data[seed] = pickle.load(f)
+
             except:
                 continue
+
+        shutil.rmtree(exp_path + '/seed_{}'.format(seed))
 
     if not os.path.exists(exp_path + '/all/'):
         os.makedirs(exp_path + '/all/')
@@ -38,7 +42,7 @@ def save_seeds_to_all(exp_path, seeds):
 
 res_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/"
 
-for opt_type in ["CFD_GD"]: # os.listdir(res_dir_path):
+for opt_type in ["CFD_GD", "FD_GD", "OurMethod_GD"]: # os.listdir(res_dir_path):
     if opt_type == ".DS_Store":
         continue
         
