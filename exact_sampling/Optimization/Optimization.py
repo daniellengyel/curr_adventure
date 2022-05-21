@@ -75,7 +75,7 @@ class OptimizationBlueprint:
             else:
                 num_func_calls = self.post_step(X)
             total_func_calls += num_func_calls
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, jnp.linalg.norm(X - self.x_init)))#float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if vals_arr[-1][-1] > 1e10:
@@ -105,7 +105,7 @@ class BFGS(OptimizationBlueprint):
         self.grad_curr = None
         self.grad_getter = grad_getter
 
-        self.use_exact = False
+        self.use_exact = True
 
 
     def step_getter(self, X, jrandom_key):
