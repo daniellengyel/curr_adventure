@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import jax.random as jrandom
 from save_load import save_opt
-from Optimization import BFGS, NewtonMethod, GradientDescent
+from Optimization import Trust, BFGS, NewtonMethod, GradientDescent
 from pdfo import newuoa
 
 from NEWUO_test import NEWUOA_Wrapper
@@ -21,18 +21,18 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    sig = 1
+    sig = 20
     noise_type="uniform"
 
-    step_size = 1e-3
-    num_total_steps = 100
+    step_size = 1e-4
+    num_total_steps = 75
     grad_eps = 1e-10
-    seed = 0
+    seed = 11
 
     jrandom_key = jrandom.PRNGKey(seed)
 
-    test_problem_iter = range(14, 15)
-    dim_i = 2
+    test_problem_iter = range(3, 4)
+    dim_i = 0
     dim_iter = range(10)
 
     # # regular BFGS
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     for i in tqdm(test_problem_iter):
         F_name, x_0, F = PyCutestGetter(func_i=i, dim_i=dim_i, sig=sig, noise_type=noise_type)
         print(F_name)
-        grad_getter = FD(sig, is_central=False, h=.1) 
+        grad_getter = FD(sig, is_central=False, h=.5) 
         optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, FD_res, _ = optimizer.run_opt()
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     for i in tqdm(test_problem_iter):
         F_name, x_0, F = PyCutestGetter(func_i=i, dim_i=dim_i, sig=sig, noise_type=noise_type)
         print(F_name)
-        grad_getter = FD(sig, is_central=True, h=.1) 
+        grad_getter = FD(sig, is_central=True, h=.5) 
         optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, central_FD_res, _ = optimizer.run_opt()
         # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", step_size, seed)
@@ -92,8 +92,8 @@ if __name__ == "__main__":
             continue
         print(F_name)
 
-        grad_getter = pow_SG(sig, max_h=0.1)
-        optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
+        grad_getter = pow_SG(sig, max_h=1)
+        optimizer = Trust(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, our_res, _ = optimizer.run_opt()
         # _, our_res = save_opt(opt_res, "OurMethod", F_name, sig, noise_type, step_size, seed)
 
@@ -122,15 +122,14 @@ if __name__ == "__main__":
     # plt.legend()
     # plt.show()
 
-    plt.plot(exact_res[:, 2], exact_res[:, -1], label="Exact")
-
+    plt.plot(range(len(exact_res[:, 2])), exact_res[:, -1], label="Exact")
     # plt.plot(adaptFD_res[:, 2], adaptFD_res[:, -1], label="Adapt")
-    plt.plot(FD_res[:, 2], FD_res[:, -1], label="FD")
-    plt.plot(central_FD_res[:, 2], central_FD_res[:, -1], label="Central FD")
-    plt.plot(our_res[:, 2], our_res[:, -1], label="Our")
+    plt.plot(range(len(FD_res[:, 2])), FD_res[:, -1], label="FD")
+    plt.plot(range(len(central_FD_res[:, 2])), central_FD_res[:, -1], label="Central FD")
+    plt.plot(range(len(our_res[:, 2])), our_res[:, -1], label="Our")
     # # plt.plot(newuoa_res, label="NEWUOA")
     plt.xlabel("Func Calls")
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.legend()
     plt.show()
 
