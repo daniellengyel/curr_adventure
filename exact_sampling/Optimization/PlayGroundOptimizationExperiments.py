@@ -21,17 +21,17 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    sig = 20
+    sig = 1
     noise_type="uniform"
 
-    step_size = 1e-4
-    num_total_steps = 75
+    step_size = 1e-3
+    num_total_steps = 100
     grad_eps = 1e-10
-    seed = 11
+    seed = 1
 
     jrandom_key = jrandom.PRNGKey(seed)
 
-    test_problem_iter = range(3, 4)
+    test_problem_iter = range(14, 15)
     dim_i = 0
     dim_iter = range(10)
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     for i in tqdm(test_problem_iter):
         F_name, x_0, F = PyCutestGetter(func_i=i, dim_i=dim_i, sig=sig, noise_type=noise_type)
         print(F_name)
-        grad_getter = FD(sig, is_central=False, h=.5) 
+        grad_getter = FD(sig, is_central=False, h=.3) 
         optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, FD_res, _ = optimizer.run_opt()
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     for i in tqdm(test_problem_iter):
         F_name, x_0, F = PyCutestGetter(func_i=i, dim_i=dim_i, sig=sig, noise_type=noise_type)
         print(F_name)
-        grad_getter = FD(sig, is_central=True, h=.5) 
+        grad_getter = FD(sig, is_central=True, h=.3) 
         optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, central_FD_res, _ = optimizer.run_opt()
         # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", step_size, seed)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
             continue
         print(F_name)
 
-        grad_getter = pow_SG(sig, max_h=1)
+        grad_getter = pow_SG(sig, max_h=.5)
         optimizer = Trust(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
         final_X, our_res, _ = optimizer.run_opt()
         # _, our_res = save_opt(opt_res, "OurMethod", F_name, sig, noise_type, step_size, seed)

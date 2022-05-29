@@ -11,6 +11,31 @@ import pandas as pd
 import os 
 HOME = os.getenv("HOME") 
 
+def generate_quadratic(s, sig, noise_type):
+    dim, space_type, ub, lb, seed = s.split("_")
+    dim, ub, lb, seed = int(dim), float(ub), float(lb), int(seed)
+
+    jrandom_key = jrandom.PRNGKey(seed)
+
+    if space_type == "log":
+        eigs = jnp.logspace(lb, ub, dim)
+    else:
+        eigs = jnp.linspace(lb, ub, dim)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    Q = jrandom.normal(subkey, shape=(dim, dim,))
+    Q = 1/2. * Q @ Q.T 
+    Q = Q + jnp.diag(eigs)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    b = jrandom.normal(subkey, shape=(dim,))
+
+    F = Quadratic(Q, b, sig, noise_type)
+    return F
+
+
+
+
 class Quadratic:
     def __init__(self, Q, b, sig=0,  noise_type="gaussian"):
         self.Q = Q

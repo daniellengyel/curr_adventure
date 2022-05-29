@@ -55,7 +55,7 @@ class OptimizationBlueprint:
                 search_direction, f1, num_func_calls = self.step_getter(X)
             total_func_calls += num_func_calls
 
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))))) #float(self.grad_curr.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(self.grad_curr)))) # jnp.linalg.norm(self.F.f1(X)))) # jnp.linalg.norm(X - self.x_init)))#float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(self.grad_curr - self.F.f1(X)))))# jnp.linalg.norm(X - self.x_init)))#float(self.grad_curr.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(self.grad_curr)))) # jnp.linalg.norm(self.F.f1(X)))) # #float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if jnp.linalg.norm(f1)/self.dim < self.grad_eps:
@@ -67,6 +67,7 @@ class OptimizationBlueprint:
                 print("Num Function Calls", total_func_calls)
                 print("Obj", self.F.f(X))
                 print("Grad norm", jnp.linalg.norm(f1))
+                print("True Norm", jnp.linalg.norm(self.F.f1(X)))
                 print()
 
             if self.F.f(X) == float("inf"):
@@ -272,6 +273,7 @@ class Trust(OptimizationBlueprint):
 
             print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
             print("H diff", jnp.linalg.norm(H - self.F.f2(X))/jnp.linalg.norm(self.F.f2(X)))
+            print("H eigs", jnp.linalg.eigh(self.F.f2(X))[0])
             
         f1 = self.grad_curr
 
@@ -300,7 +302,7 @@ class Trust(OptimizationBlueprint):
     
     def get_H_rbf(self, x_0, S, F_vals):
 
-        rbf = RBFInterpolator(S.T, F_vals, smoothing=4) #, epsilon=0.1, kernel="gaussian")
+        rbf = RBFInterpolator(S.T, F_vals, smoothing=1) #, epsilon=0.1, kernel="gaussian")
 
         coeffs = jnp.array(rbf._coeffs)
         y = jnp.array(rbf.y)
