@@ -26,7 +26,7 @@ class adapt_FD:
             jrandom_key, subkey = jrandom.split(jrandom_key)
             grad[i], curr_num_func_calls = _adapt_FD(f, x_0, curr_dir, self.sig, self.rl, self.ru, subkey, f_x_0)
             total_func_calls += curr_num_func_calls
-        return grad, total_func_calls
+        return grad, total_func_calls, None, None, None
     
 
 def _adapt_FD(f, x_0, x_dir, sig, rl, ru, jrandom_key, f_x_0=None, return_h=False):

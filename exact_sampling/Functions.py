@@ -4,6 +4,38 @@ import jax.random as jrandom
 from jax import jit, grad, jacfwd
 import pycutest
 
+from sklearn.preprocessing import StandardScaler 
+
+import pandas as pd 
+
+import os 
+HOME = os.getenv("HOME") 
+
+def generate_quadratic(s, sig, noise_type):
+    dim, space_type, ub, lb, seed = s.split("_")
+    dim, ub, lb, seed = int(dim), float(ub), float(lb), int(seed)
+
+    jrandom_key = jrandom.PRNGKey(seed)
+
+    if space_type == "log":
+        eigs = jnp.logspace(lb, ub, dim)
+    else:
+        eigs = jnp.linspace(lb, ub, dim)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    Q = jrandom.normal(subkey, shape=(dim, dim,))
+    Q = 1/2. * Q @ Q.T 
+    Q = Q + jnp.diag(eigs)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    b = jrandom.normal(subkey, shape=(dim,))
+
+    F = Quadratic(Q, b, sig, noise_type)
+    return F
+
+
+
+
 class Quadratic:
     def __init__(self, Q, b, sig=0,  noise_type="gaussian"):
         self.Q = Q
@@ -124,6 +156,53 @@ def PyCutestGetter(func_name=None, func_dim=None, func_i=None, dim_i=None, sig=0
     return  func_name, curr_prob.x0, PyCutestWrapper(curr_prob, sig, noise_type)
 
 
+class HeartDisease:
+    """"https://www.analyticsvidhya.com/blog/2022/03/logistic-regression-on-uci-dataset/"""
 
+    def __init__(self, sig=0,  noise_type="gaussian"):
+        self.sig = sig
+        self.noise_type = noise_type
 
+        self.X_data = None
+        self.y_data = None
+        self._init_data()
+
+        self._f1 = grad(lambda x: self.f(x, None))
+        self._f2 = jacfwd(lambda x: self.f1(x))
+
+        self.opt_X = jnp.array([-0.00549042, -0.83499842,  0.90540353, -0.35528798,
+                                -0.28677555,  0.06359361,  0.23585258,  0.59582554,
+                                -0.49040073, -0.70567094,  0.33217319, -0.85092055,
+                                -0.22942091])
+
+    def _init_data(self):
+        df = pd.read_csv(HOME + "/curr_adventure/exact_sampling/Datasets/" + 'heart_disease_dataset_UCI.csv')
+        X_data = jnp.array(df.iloc[:,0:13].values) 
+        y_data = jnp.array(df.iloc[:,13].values)
+
+        X_std = StandardScaler().fit_transform(X_data)
+
+        self.X_data = X_std
+        self.y_data = y_data
+
+    def f(self, X, jrandom_key=None):
+        lin_model = self.X_data @ X[:13] + X[-1]
+        out = 1 / (1 + jnp.exp(-lin_model))
+
+        out = -(1 / len(self.y_data)) * jnp.sum(self.y_data * jnp.log(out) + (1 - self.y_data) * jnp.log(1 - out))
+
+        if jrandom_key is not None:
+            if self.noise_type == "uniform":
+                eps = self.sig * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
+            else:
+                return out + self.sig * jrandom.normal(jrandom_key) 
+    
+        return out
+
+    def f1(self, X):
+        return self._f1(X)
+    
+    def f2(self, X):
+        return self._f2(X).reshape(X.size, X.size)
 

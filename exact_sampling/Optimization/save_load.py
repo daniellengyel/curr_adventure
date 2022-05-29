@@ -5,10 +5,10 @@ import os
 HOME = os.getenv("HOME")
 import time
 
-def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_type, step_size, seed, additional_info=None):
+def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_type, step_size, seed, problem_type, additional_info=None):
     test_problem_name = "{}_{}".format(test_problem_name, dim)
 
-    save_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}".format(opt_type, test_problem_name)
+    save_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}/{}".format(problem_type, opt_type, test_problem_name)
 
     if opt_type in ["GradientDescent", "NewtonsMethod"]:
         save_name = "{}".format(step_size)
@@ -29,8 +29,8 @@ def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_ty
     with open(save_name + "/x_data.pkl", "wb") as f:
         pickle.dump(opt_res_X, f)
 
-def load_opt(opt_type, test_problem_name, sig, noise_type, step_size, seed, additional_info={}):
-    load_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}/".format(opt_type, test_problem_name)
+def load_opt(opt_type, test_problem_name, sig, noise_type, step_size, seed, problem_type, additional_info={}):
+    load_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}/{}/".format(problem_type, opt_type, test_problem_name)
     
     if opt_type in ["GradientDescent", "NewtonsMethod"]:
         load_name = "{}".format(step_size)

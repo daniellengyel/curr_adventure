@@ -49,8 +49,14 @@ def lambda_coeff_zero_set_max_lambda(D_diag, l_max, sig):
     cbrt_term = jnp.cbrt(sqrt_term + 27 * dim * D_sum**2 * l_max * sig**2 - D_min**3 * l_max**3)/dim
 
     a = (dim * cbrt_term + D_min * l_max)**2 / (3 * dim**2 * cbrt_term)
-
-    lmbdas = [(sig * jnp.sqrt(2*l_max/(D_diag[i] * a))) for i in range(len(D_diag))]
+    
+    lmbdas = []
+    for i in range(len(D_diag)):
+        if D_diag[i] != 0:
+            lmbdas.append(min(sig * jnp.sqrt(2*l_max/(D_diag[i] * a)), l_max))
+        else:
+            lmbdas.append(l_max)
+        
     lmbdas[jnp.argmin(D_diag)] = l_max
     
     return jnp.array(lmbdas)
@@ -58,16 +64,20 @@ def lambda_coeff_zero_set_max_lambda(D_diag, l_max, sig):
 
 def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)
-    lmbda = lambda_coeff_zero(D_diag, sig)
+    sig = max(sig, 1e-4) # machine precision roughly 
+
+    if 0 not in D_diag:
+        lmbda = lambda_coeff_zero(D_diag, sig)
+    else:
+        lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
+    
     if jnp.max(lmbda) > max_h**2:
         lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
 
-    if jnp.max(lmbda) > max_h**2:
-        lmbda = max_h**2 * jnp.ones(dim)
-
     sing_vals = jnp.diag(lmbda**0.5)
+
     V = jnp.eye(dim)
-    
+
     return sing_vals, V
 
 
