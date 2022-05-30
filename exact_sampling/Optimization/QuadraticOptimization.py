@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     dim = 10
     test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
-    x_0 = jnp.zeros(dim)
+    x_0 = jnp.ones(dim)
 
     OPT_TYPES = os.getenv("OPT_TYPES").split(" ") # ["Our_GD", "GD", "CFG_GD", "FD_GD"] #
 

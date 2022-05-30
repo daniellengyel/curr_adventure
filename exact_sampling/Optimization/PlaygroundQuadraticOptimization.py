@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import jax.random as jrandom
 from save_load import save_opt
-from Optimization import BFGS, NewtonMethod
+from Optimization import BFGS, NewtonMethod, Trust, GradientDescent
 from pdfo import newuoa
 
 from NEWUO_test import NEWUOA_Wrapper
@@ -12,7 +12,7 @@ HOME = os.getenv("HOME")
 sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 
 from pow_sampling_set import pow_SG
-from Functions import PyCutestGetter, Quadratic
+from Functions import PyCutestGetter, Quadratic, generate_quadratic
 from AdaptiveFD import adapt_FD
 from FD import FD
 from BFGSFD import BFGSFD
@@ -23,29 +23,36 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    sig = 2
+    dim = 10
+    test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
+    x_0 = jnp.zeros(dim)
+
+    sig = 0
+    step_size = 1e-5
     noise_type="uniform"
 
-    c1 = 0.1
-    c2 = 0.9
-    num_total_steps = 20
+    num_total_steps = 10
     grad_eps = 1e-5
-    seed = 1
 
-    jrandom_key = jrandom.PRNGKey(seed)
+    verbose = True
 
-    dim = 32
-    Q = jnp.diag(jnp.logspace(-2, 4, dim))
-    b = jnp.zeros(dim)
-    F = Quadratic(Q, b, sig=sig, noise_type="uniform")
-
-    x_0 = jnp.ones(dim)
-
-    # regular BFGS
-    optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose=True)
-    final_X, exact_res = optimizer.run_opt()
+    F_no_noise = generate_quadratic(test_problem_iter[0], 0, noise_type)
+    F = generate_quadratic(test_problem_iter[0], sig, noise_type)
 
 
+    print(jnp.linalg.eigh(F.f2(x_0))[0])
+    print(F.b)
+
+    jrandom_key = jrandom.PRNGKey(0)
+
+    # # regular BFGS
+    # optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose=True)
+    # final_X, exact_res = optimizer.run_opt()
+
+
+    GD_sig = 0
+    optimizer = GradientDescent(x_0, F_no_noise, step_size, num_total_steps, GD_sig, None, grad_eps, verbose=True)
+    final_X, exact_res, _ = optimizer.run_opt()
 
     # adaptive FD
     # # test_problem_iter = [2] # [19] # range(0, 1)
@@ -60,30 +67,25 @@ if __name__ == "__main__":
     # standard FD
     # grad_getter = FD(sig, is_central=False) 
     # grad_getter = BFGSFD(sig) 
-    FD_res_total = []
-    for _ in range(3):
-        grad_getter = FD(sig, is_central=False) 
-        jrandom_key, subkey = jrandom.split(jrandom_key)
-        optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, subkey, grad_getter, grad_eps, verbose=True)
-        final_X, FD_res = optimizer.run_opt()
-        FD_res_total.append(FD_res[:, 2]) 
-    # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
-    FD_res_total = jnp.array(FD_res_total)
-    FD_res_mean = jnp.mean(FD_res_total, axis=0)
-    FD_res_std = jnp.std(FD_res_total, axis=0)
+
+    # grad_getter = FD(sig, is_central=False, h=1.) 
+    # optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    # final_X, FD_res, _ = optimizer.run_opt()
+    # # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
 
 
-    # Central FD
-    grad_getter = FD(sig, is_central=True) 
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
-    final_X, central_FD_res = optimizer.run_opt()
-    # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
+
+    # # Central FD
+    # grad_getter = FD(sig, is_central=True, h=1.) 
+    # optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    # final_X, central_FD_res, _ = optimizer.run_opt()
+    # # save_opt(adaptFD_res, "AdaptFD", F_name, sig, "uniform", c1, c2, seed)
 
 
-    # Our Method
-    grad_getter = pow_SG(sig, coeff=0)
-    optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
-    final_X, our_res = optimizer.run_opt()
+    # # Our Method
+    # grad_getter = pow_SG(sig, max_h=1.)
+    # optimizer = Trust(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    # final_X, our_res, _ = optimizer.run_opt()
     # _, our_res = save_opt(opt_res, "OurMethod", F_name, sig, noise_type, c1, c2, seed)
 
     # # NEWUOA
@@ -126,7 +128,8 @@ if __name__ == "__main__":
     # plt.plot(adaptFD_res[:, 2], adaptFD_res[:, 0], label="Adapt")
     plt.plot(range(len(exact_res[:, 2])), exact_res[:, 0], label="Exact")
     # plt.plot(range(len(FD_res[:, 2])), FD_res[:, 0], label="FD")
-    plt.errorbar(range(len(FD_res_mean)), FD_res_mean, yerr=FD_res_std, label="FD")
+
+    plt.plot(range(len(FD_res[:, 2])), FD_res[:, 0], label="FD")
     plt.plot(range(len(central_FD_res[:, 2])), central_FD_res[:, 0], label="Central FD")
     plt.plot(range(len(our_res[:, 2])), our_res[:, 0], label="Our")
     # plt.plot(newuoa_res, label="NEWUOA")
