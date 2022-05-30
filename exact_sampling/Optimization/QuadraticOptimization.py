@@ -22,13 +22,13 @@ from FD import FD
 from NEWUO_test import NEWUOA_Wrapper
 
 NUM_CPU = 1 # int(os.getenv("NUM_CPU"))
-ARRAY_INDEX = 1 # os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
     ARRAY_INDEX = int(ARRAY_INDEX)
     
-NUM_ARRAY = 1
+NUM_ARRAY = 10
 
 def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
     jrandom_key = jrandom.PRNGKey(seed=seed)
@@ -74,25 +74,25 @@ def run_NEWUOA(F_name, x_0, sig, noise_type, seed):
 if __name__ == "__main__":
 
 
-    dim = 5
+    dim = 10
     test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
     x_0 = jnp.zeros(dim)
 
-    OPT_TYPES = ["Our_GD", "GD", "CFG_GD", "FD_GD"] #os.getenv("OPT_TYPES").split(" ")
+    OPT_TYPES = os.getenv("OPT_TYPES").split(" ") # ["Our_GD", "GD", "CFG_GD", "FD_GD"] #
 
-    sig = 2 # float(os.getenv("SIG"))
-    step_size = 1e-4 # float(os.getenv("STEP_SIZE"))
+    sig = float(os.getenv("SIG"))
+    step_size = float(os.getenv("STEP_SIZE"))
     noise_type="uniform"
 
-    num_total_steps = 50
+    num_total_steps = 100
     grad_eps = 1e-5
 
     verbose = False
 
-    num_trials = 5
+    num_trials = 50
     lower_seed, upper_seed = int(num_trials / NUM_ARRAY) * (ARRAY_INDEX - 1), min(int(num_trials / NUM_ARRAY) * (ARRAY_INDEX ), num_trials)
 
-    h = 1 # float(os.getenv("h"))
+    h = float(os.getenv("h"))
 
     # Newtons Method
     newton_sig = 0

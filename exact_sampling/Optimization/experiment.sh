@@ -3,9 +3,9 @@
 #PBS -lwalltime=12:00:00
 #PBS -J 1-10
 
-export OPT_TYPES="FD_GD CFD_GD"
+export OPT_TYPES="FD_GD CFD_GD Our_GD"
 export SIG="1"
-export STEP_SIZE="1e-5"
+export STEP_SIZE="1e-3"
 export h="1"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
@@ -27,4 +27,4 @@ export MYARCH="pc.lnx.gfo"
 export PYCUTEST_CACHE="${HOME}/CUTEst/pycutest_cache"
 
 
-python $HOME/curr_adventure/exact_sampling/Optimization/OptimizationExperiments.py
+python $HOME/curr_adventure/exact_sampling/Optimization/QuadraticOptimization.py

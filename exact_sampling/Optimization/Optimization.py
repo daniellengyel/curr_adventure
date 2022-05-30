@@ -230,8 +230,8 @@ class Trust(OptimizationBlueprint):
             #         curr_interp_points.append(self.interp_points[:, i])
             #         curr_F_vals.append(self.F_vals[i])
 
-            curr_interp_points = self.interp_points[:, -self.dim**2 * 2:] # jnp.array(curr_interp_points).T
-            curr_F_vals = self.F_vals[-self.dim**2 * 2 : ] # jnp.array(curr_F_vals)
+            curr_interp_points = self.interp_points # jnp.array(curr_interp_points).T # self.interp_points[:, -self.dim**2 * 2:]
+            curr_F_vals = self.F_vals # jnp.array(curr_F_vals) # self.F_vals[-self.dim**2 * 2 : ] # 
 
 
             

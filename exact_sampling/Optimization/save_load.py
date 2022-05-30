@@ -23,6 +23,8 @@ def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_ty
     if not os.path.isdir(save_name):
         os.makedirs(save_name)
 
+    print(save_name)
+
     with open(save_name + "/vals.pkl", "wb") as f:
         pickle.dump(opt_res, f)
 
