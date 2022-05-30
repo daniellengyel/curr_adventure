@@ -84,7 +84,7 @@ if __name__ == "__main__":
     step_size = float(os.getenv("STEP_SIZE"))
     noise_type="uniform"
 
-    num_total_steps = 100
+    num_total_steps = 500
     grad_eps = 1e-5
 
     verbose = False

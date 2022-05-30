@@ -4,8 +4,8 @@
 #PBS -J 1-10
 
 export OPT_TYPES="FD_GD CFD_GD Our_GD"
-export SIG="1"
-export STEP_SIZE="1e-3"
+export SIG="20"
+export STEP_SIZE="1e-5"
 export h="1"
 
 export PATH=$HOME/miniconda3/bin/:$PATH
