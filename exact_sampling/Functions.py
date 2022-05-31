@@ -11,6 +11,9 @@ import pandas as pd
 import os 
 HOME = os.getenv("HOME") 
 
+def get_F(F_type, F_name, sig, noise_type):
+    pass
+
 def generate_quadratic(s, sig, noise_type):
     dim, space_type, ub, lb, seed = s.split("_")
     dim, ub, lb, seed = int(dim), float(ub), float(lb), int(seed)

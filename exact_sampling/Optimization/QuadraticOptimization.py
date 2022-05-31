@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 import jax.random as jrandom
-from Optimization import BFGS, GradientDescent, NewtonMethod, Trust
-from pdfo import newuoa
+from Optimization import ExactH_GD, InterpH_GD
 
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -9,169 +8,123 @@ config.update("jax_enable_x64", True)
 from save_load import save_opt
 from tqdm import tqdm
 
+import math
 import sys 
 import os 
 HOME = os.getenv("HOME")
 sys.path.append(HOME + "/curr_adventure/exact_sampling/")
+
+from Functions import get_F
+
+from AdaptiveFD import adapt_FD
+from FD import FD
 from pow_sampling_set import pow_SG
 
-from Functions import generate_quadratic
-from AdaptiveFD import adapt_FD
-from BFGSFD import BFGSFD 
-from FD import FD
-from NEWUO_test import NEWUOA_Wrapper
-
-NUM_CPU = 1 # int(os.getenv("NUM_CPU"))
-ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = 10 #os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
     ARRAY_INDEX = int(ARRAY_INDEX)
+
+ARRAY_INDEX -= 1
     
 NUM_ARRAY = 10
 
-def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
-    jrandom_key = jrandom.PRNGKey(seed=seed)
+def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose=False, param_dict={}):
+    
+    F, x_0 = get_F(F_type, F_name, sig, noise_type)
     dim = len(x_0)
 
-    F = generate_quadratic(F_name, sig, noise_type)
+    jrandom_key = jrandom.PRNGKey(seed=seed)
 
-    sig = F.sig
-    noise_type = F.noise_type
+    opt_specs = opt_type.split("_")
 
-    if opt_type == "OurMethod_GD":
-        grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
-    elif opt_type == "CFD_GD":
-        grad_getter = FD(sig, is_central=True, h=param_dict["h"]) 
-    elif opt_type == "FD_GD":
-        grad_getter = FD(sig, is_central=False, h=param_dict["h"]) 
-    elif opt_type == "AdaptFD_GD":
-        grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
-
-    if opt_type == "OurMethod_GD":
-        optimizer = Trust(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)    
+    if len(opt_specs) == 2:
+        H_get_type = opt_specs[0]
+        general_opt_type = opt_specs[1]
     else:
-        optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)    
-    final_X, res, res_X = optimizer.run_opt()
+        H_get_type = None
+        general_opt_type = opt_specs[1]
+
+    if general_opt_type == "Ours":
+        grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
+    elif general_opt_type == "CFD":
+        grad_getter = FD(sig, is_central=True, h=param_dict["h"], use_H=False) 
+    elif general_opt_type == "FD":
+        if H_get_type is not None: 
+            grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=True) 
+        else: 
+            grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=True) 
+    elif general_opt_type == "AdaptFD":
+        grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
+    elif general_opt_type == "GD":
+        grad_getter = lambda F, X, jrandom_key, H: F.f1(X), 1, None, None, None
+
+    if (H_get_type is not None) and (H_get_type != "Exact"):
+        optimizer = InterpH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose, smoothing=param_dict["smoothing"])    
+    else:
+        optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+
+    _, res, res_X = optimizer.run_opt()
     save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, "Quadratic", param_dict)
+
         
-        
-def run_NEWUOA(F_name, x_0, sig, noise_type, seed):
-    jrandom_key = jrandom.PRNGKey(seed=seed)
-    dim = len(x_0)
-
-    F = generate_quadratic(F_name, sig, noise_type)
-
-    curr_F_inst = NEWUOA_Wrapper(F, jrandom_key)
-    curr_F = lambda X: float(curr_F_inst.f(X))
-
-    newuoa_full_res = newuoa(curr_F, x_0) 
-    newuoa_res = newuoa_full_res["fhist"]
-    step_size = 0
-    save_opt(newuoa_res, None, "NEWUOA", F_name, dim, sig, noise_type, step_size, seed, "Quadratic")
 
 
 if __name__ == "__main__":
 
 
-    dim = 10
-    test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
-    x_0 = jnp.ones(dim)
-
-    OPT_TYPES = os.getenv("OPT_TYPES").split(" ") # ["Our_GD", "GD", "CFG_GD", "FD_GD"] #
-
-    sig = float(os.getenv("SIG"))
-    step_size = float(os.getenv("STEP_SIZE"))
-    noise_type="uniform"
 
     num_total_steps = 500
     grad_eps = 1e-5
 
     verbose = False
 
-    num_trials = 50
-    lower_seed, upper_seed = int(num_trials / NUM_ARRAY) * (ARRAY_INDEX - 1), min(int(num_trials / NUM_ARRAY) * (ARRAY_INDEX ), num_trials)
+    noise_type="uniform"
+    num_trials = 10
+    SIGS = [1e-4, 1e-1, 1, 10, 20]
+    STEP_SIZES = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
+    HS = [1e-3, 1e-2, 0.1, 0.5, 1.0, 2.0]
+    SMOOTHINGS = [0, 1, 5, 10, 20]
+    SEEDS = list(range(10))
+    OPT_TYPES = ["GD", "FD", "CFD", "AdaptFD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
+    F_TYPE = "Quadratic"
+    F_NAMES = ["{}_{}_{}_{}_{}".format(10, "log", -2, 4, 0)] # dim, interp_type, lw, ub, seed
 
-    h = float(os.getenv("h"))
+    # GD = len(STEP_SIZES)
+    # ADAPT = GD * len(SEEDS) * len(SIGS) 
+    # FD = 2 * ADAPT * len(HS)
+    # EXACT = 2 * ADAPT * len(HS)
+    # INTERP = 2 * ADAPT * len(HS) * len(SMOOTHINGS)
+    # print(GD + ADAPT + FD + EXACT + INTERP)
 
-    # Newtons Method
-    newton_sig = 0
-    if "Newton" in OPT_TYPES:
-        print("++++++ Newtons Method ++++++")
-        for F_name in tqdm(test_problem_iter):
-            F = generate_quadratic(F_name, sig, noise_type)
-            optimizer = NewtonMethod(x_0, F, step_size, num_total_steps, newton_sig, None, grad_eps, verbose=verbose)
-            final_X, exact_res, exact_res_X = optimizer.run_opt()
-            save_opt(exact_res, exact_res_X, "NewtonsMethod", F_name, len(x_0), newton_sig, noise_type, step_size, None, problem_type="Quadratic")
+    inp_list = []
 
-    # Gradient Descent
-    GD_sig = 0
-    if "GD" in OPT_TYPES:
-        print("++++++ Gradient Descent ++++++")
-        for F_name in tqdm(test_problem_iter):
-            F = generate_quadratic(F_name, sig, noise_type)
-            optimizer = GradientDescent(x_0, F, step_size, num_total_steps, GD_sig, None, grad_eps, verbose=verbose)
-            final_X, exact_res, exact_res_X = optimizer.run_opt()
-            save_opt(exact_res, exact_res_X, "GradientDescent", F_name, len(x_0), GD_sig, noise_type, step_size, None, problem_type="Quadratic")
+    for opt_type in OPT_TYPES:
+        for step_size in STEP_SIZES:
+            for F_name in F_NAMES:
+                if opt_type == "GD":
+                    sig = 0
+                    seed = 0
+                    inp_list.append((F_TYPE, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose, {}))
+                else:
+                    for sig in SIGS:
+                        for seed in SEEDS:
+                            if opt_type == "AdaptFD":
+                                inp_list.append((F_TYPE, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose, {}))
+                            else:
+                                for h in HS:
+                                    if "Interp" == opt_type.split("_")[0]:
+                                        for smoothing in SMOOTHINGS:
+                                            inp_list.append((F_TYPE, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h, "smoothing": smoothing}))
+                                    else:
+                                        inp_list.append((F_TYPE, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}))
 
+    num_inps = len(inp_list)                                
 
-    # adaptive FD
-    if "AdaptFD_GD" in OPT_TYPES:
-        print("++++++ Adaptive FD ++++++")
+    ub = min(math.ceil(num_inps / NUM_ARRAY) * (ARRAY_INDEX + 1), len(inp_list))
+    lb = math.ceil(num_inps / NUM_ARRAY) * ARRAY_INDEX
 
-        for F_name in tqdm(test_problem_iter):
-
-            inp_list = [("AdaptFD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose) for seed in range(lower_seed, upper_seed)]
-            for inp in inp_list:
-                run_gd_approx_exp(*inp)
-
-
-    # Forward FD
-    if "FD_GD" in OPT_TYPES:
-        print("++++++ FD ++++++")
-
-        for F_name in tqdm(test_problem_iter):
-
-            is_central = False
-            inp_list = [("FD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
-            for inp in inp_list:
-                run_gd_approx_exp(*inp)
-
-
-    # Central FD
-    if "CFD_GD" in OPT_TYPES:
-        print("++++++ CFD ++++++")
-
-        for F_name in tqdm(test_problem_iter):
-
-            is_central = True
-            inp_list = [("CFD_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
-            for inp in inp_list:
-                run_gd_approx_exp(*inp)
-
-
-    # Our Method
-    if "Our_GD" in OPT_TYPES:
-        print("++++++ Our Method ++++++")
-
-        for F_name in tqdm(test_problem_iter):
-
-            inp_list = [("OurMethod_GD", F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, {"h": h}) for seed in range(lower_seed, upper_seed)]
-            for inp in inp_list:
-                try:
-                    run_gd_approx_exp(*inp)
-                except:
-                    continue
-
-                    # run_gd_approx_exp(*inp)
-
-    # NEWUOA
-    if "NEWUOA" in OPT_TYPES:
-        print("++++++ NEWUOA ++++++")
-        for F_name in tqdm(test_problem_iter):
-            inp_list = [(F_name, x_0, sig, noise_type, seed) for seed in range(lower_seed, upper_seed)]
-            for inp in inp_list:
-                run_NEWUOA(*inp)
-
-
+    for inp in tqdm(range(lb, ub)):
+        run_exp(*inp)
 

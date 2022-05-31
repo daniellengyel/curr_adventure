@@ -76,107 +76,14 @@ class OptimizationBlueprint:
             # update step
             X = X + self.step_size * search_direction
 
-            # clean up after update (i.e. BFGS update)
-            if self.jrandom_key is not None:
-                self.jrandom_key, subkey = jrandom.split(self.jrandom_key)
-                num_func_calls = self.post_step(X, subkey)
-            else:
-                num_func_calls = self.post_step(X)
-            total_func_calls += num_func_calls
-
             if vals_arr[-1][-1] > 1e10:
                 break
 
-        self.reset()
         return X, jnp.array(vals_arr), jnp.array(x_arr)
 
 
     def step_getter(self, X, jrandom_key=None):
         pass
-
-    def post_step(self, X, jrandom_key=None):
-        return 0
-
-    def reset(self):
-        pass
-
-
-class BFGS(OptimizationBlueprint):
-    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False):
-        super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
-
-
-        self.X_prev = None
-        self.grad_curr = None
-        self.grad_getter = grad_getter
-
-        self.use_exact = False
-
-        if self.use_exact:
-            self.H_inv = jnp.linalg.inv(self.F.f2(x_init))
-        else:
-            self.H_inv = jnp.eye(self.dim)
-
-
-
-    def step_getter(self, X, jrandom_key):
-        num_func_calls = 0
-        self.X_prev = X.copy()
-        if self.grad_curr is None:
-            if self.use_exact:
-                self.grad_curr, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key, H=self.F.f2(X)) 
-            else:
-                self.grad_curr, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key, H=jnp.linalg.inv(self.H_inv))
-
-            if self.verbose:
-                print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
-                print("H diff", jnp.linalg.norm(self.H_inv - jnp.linalg.inv(self.F.f2(X)))/jnp.linalg.norm(jnp.linalg.inv(self.F.f2(X))))
-            
-        f1 = self.grad_curr
-
-        return -f1, f1, num_func_calls
-        # return -self.H_inv.dot(f1), f1, num_func_calls
-    
-    def post_step(self, X, jrandom_key):
-        prev_grad = self.grad_curr
-
-        if self.use_exact:
-            self.grad_curr, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key,  H=self.F.f2(X))
-        else:
-            self.grad_curr, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key,  H=jnp.linalg.inv(self.H_inv))
-
-        if self.use_exact:
-            self.H_inv = jnp.linalg.inv(self.F.f2(X))
-        else:
-            self.H_inv = self.BFGS_update(self.X_prev, X, prev_grad, self.grad_curr, self.H_inv)
-
-        if self.verbose:
-            print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
-            print("H diff", jnp.linalg.norm(self.H_inv - jnp.linalg.inv(self.F.f2(X)))/jnp.linalg.norm(jnp.linalg.inv(self.F.f2(X))))
-        return num_func_calls
-
-    def reset(self):
-        self.grad_curr = None
-        self.H_inv = jnp.eye(self.dim)
-
-    def BFGS_update(self, x_0, x_1, g_0, g_1, inv_hessian_approx=None):
-        if inv_hessian_approx is None:
-            H = jnp.eye(len(x_0))
-        else:
-            H = inv_hessian_approx
-
-        grad_diff = (g_1 - g_0)
-        update_step = x_1 - x_0
-        
-        ys = jnp.inner(grad_diff, update_step)
-        Hy = jnp.dot(H, grad_diff)
-        yHy = jnp.inner(grad_diff, Hy)
-        
-        H += (ys + yHy) * jnp.outer(update_step, update_step) / ys ** 2
-        H -= (jnp.outer(Hy, update_step) + jnp.outer(update_step, Hy)) / ys
-
-        H = (H + H.T) / 2.
-        return H      
 
 
 class NewtonMethod(OptimizationBlueprint):
@@ -203,8 +110,30 @@ class GradientDescent(OptimizationBlueprint):
         return -f1, f1, 2 
 
 
-class Trust(OptimizationBlueprint):
+class ExactH_GD(OptimizationBlueprint):
     def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False):
+        super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
+
+        self.grad_getter = grad_getter
+        
+
+    def step_getter(self, X, jrandom_key):
+        num_func_calls = 0
+        
+        H = self.F.f2(X)
+        f1, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
+
+        if self.verbose:
+            print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
+
+        return -f1, f1, num_func_calls
+
+
+
+
+
+class InterpH_GD(OptimizationBlueprint):
+    def __init__(self, x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps=0, verbose=False, smoothing=1):
         super().__init__(x_init, F, step_size, num_total_steps, sig, jrandom_key, grad_eps, verbose)
 
 
@@ -214,6 +143,8 @@ class Trust(OptimizationBlueprint):
         
         self.interp_points = None
         self.F_vals = None
+        
+        self.smoothing = smoothing
         
 
     def step_getter(self, X, jrandom_key):
@@ -233,8 +164,6 @@ class Trust(OptimizationBlueprint):
             curr_interp_points = self.interp_points # jnp.array(curr_interp_points).T # self.interp_points[:, -self.dim**2 * 2:]
             curr_F_vals = self.F_vals # jnp.array(curr_F_vals) # self.F_vals[-self.dim**2 * 2 : ] # 
 
-
-            
             # print("num F sub", len(curr_F_vals))
 
             # curr_interp_points = curr_interp_points[:, -int(self.dim**2/8):]
@@ -254,12 +183,10 @@ class Trust(OptimizationBlueprint):
             # print(repr(H))
             # print("H diff", jnp.linalg.norm(H - self.F.f2(X))/jnp.linalg.norm(self.F.f2(X)))
 
-
         else:
             H = jnp.eye(len(X))
             rbf_f1 = None
 
-        # H = self.F.f2(X)
 
         self.grad_curr, num_func_calls, F_x_0, FS, S = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
@@ -304,7 +231,7 @@ class Trust(OptimizationBlueprint):
     
     def get_H_rbf(self, x_0, S, F_vals):
 
-        rbf = RBFInterpolator(S.T, F_vals, smoothing=20) #, epsilon=0.1, kernel="gaussian")
+        rbf = RBFInterpolator(S.T, F_vals, smoothing=self.smoothing) #, epsilon=0.1, kernel="gaussian")
 
         coeffs = jnp.array(rbf._coeffs)
         y = jnp.array(rbf.y)
