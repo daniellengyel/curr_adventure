@@ -259,6 +259,8 @@ class Trust(OptimizationBlueprint):
             H = jnp.eye(len(X))
             rbf_f1 = None
 
+        # H = self.F.f2(X)
+
         self.grad_curr, num_func_calls, F_x_0, FS, S = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
 
@@ -302,7 +304,7 @@ class Trust(OptimizationBlueprint):
     
     def get_H_rbf(self, x_0, S, F_vals):
 
-        rbf = RBFInterpolator(S.T, F_vals, smoothing=1) #, epsilon=0.1, kernel="gaussian")
+        rbf = RBFInterpolator(S.T, F_vals, smoothing=20) #, epsilon=0.1, kernel="gaussian")
 
         coeffs = jnp.array(rbf._coeffs)
         y = jnp.array(rbf.y)
