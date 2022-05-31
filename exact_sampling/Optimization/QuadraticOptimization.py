@@ -20,7 +20,7 @@ from AdaptiveFD import adapt_FD
 from FD import FD
 from pow_sampling_set import pow_SG
 
-ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = 1 # os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
@@ -29,6 +29,13 @@ else:
 ARRAY_INDEX -= 1
     
 NUM_ARRAY = 15
+
+class ExactGrad:
+    def __init__(self):
+        pass
+
+    def grad(self, F, X, jrandom_key, H): 
+        return F.f1(X), 1, None, None, None
 
 def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose=False, param_dict={}):
     
@@ -44,7 +51,7 @@ def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_
         general_opt_type = opt_specs[1]
     else:
         H_get_type = None
-        general_opt_type = opt_specs[1]
+        general_opt_type = opt_specs[0]
 
     if general_opt_type == "Ours":
         grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
@@ -58,7 +65,7 @@ def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_
     elif general_opt_type == "AdaptFD":
         grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
     elif general_opt_type == "GD":
-        grad_getter = lambda F, X, jrandom_key, H: F.f1(X), 1, None, None, None
+        grad_getter = ExactGrad()
 
     if (H_get_type is not None) and (H_get_type != "Exact"):
         optimizer = InterpH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose, smoothing=param_dict["smoothing"])    

@@ -44,7 +44,7 @@ class OptimizationBlueprint:
         vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, 0))
         x_arr.append(X)
 
-        for t in tqdm(range(self.loop_steps_remaining)):
+        for t in range(self.loop_steps_remaining):
 
             
             # get search direction
