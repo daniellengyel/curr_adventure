@@ -12,10 +12,11 @@ import os
 HOME = os.getenv("HOME") 
 
 def get_F(F_type, F_name, sig, noise_type):
-    pass
+    
+    return generate_quadratic(F_name, sig, noise_type)
 
-def generate_quadratic(s, sig, noise_type):
-    dim, space_type, ub, lb, seed = s.split("_")
+def generate_quadratic(F_name, sig, noise_type):
+    dim, space_type, ub, lb, seed = F_name.split("_")
     dim, ub, lb, seed = int(dim), float(ub), float(lb), int(seed)
 
     jrandom_key = jrandom.PRNGKey(seed)
@@ -34,7 +35,9 @@ def generate_quadratic(s, sig, noise_type):
     b = jrandom.normal(subkey, shape=(dim,))
 
     F = Quadratic(Q, b, sig, noise_type)
-    return F
+
+    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    return F, x_0
 
 
 

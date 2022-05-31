@@ -20,7 +20,7 @@ from AdaptiveFD import adapt_FD
 from FD import FD
 from pow_sampling_set import pow_SG
 
-ARRAY_INDEX = 10 #os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
@@ -28,7 +28,7 @@ else:
 
 ARRAY_INDEX -= 1
     
-NUM_ARRAY = 10
+NUM_ARRAY = 15
 
 def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose=False, param_dict={}):
     
@@ -82,10 +82,10 @@ if __name__ == "__main__":
 
     noise_type="uniform"
     num_trials = 10
-    SIGS = [1e-4, 1e-1, 1, 10, 20]
+    SIGS = [1e-1, 1, 20]
     STEP_SIZES = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
-    HS = [1e-3, 1e-2, 0.1, 0.5, 1.0, 2.0]
-    SMOOTHINGS = [0, 1, 5, 10, 20]
+    HS = [5e-3, 0.1, 0.5, 1.0, 2.0]
+    SMOOTHINGS = [0, 1, 5, 20]
     SEEDS = list(range(10))
     OPT_TYPES = ["GD", "FD", "CFD", "AdaptFD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
     F_TYPE = "Quadratic"
@@ -125,6 +125,6 @@ if __name__ == "__main__":
     ub = min(math.ceil(num_inps / NUM_ARRAY) * (ARRAY_INDEX + 1), len(inp_list))
     lb = math.ceil(num_inps / NUM_ARRAY) * ARRAY_INDEX
 
-    for inp in tqdm(range(lb, ub)):
-        run_exp(*inp)
+    for i in tqdm(range(lb, ub)):
+        run_exp(*inp_list[i])
 
