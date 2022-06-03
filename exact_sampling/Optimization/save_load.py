@@ -10,7 +10,7 @@ def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_ty
 
     save_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}/{}".format(problem_type, opt_type, test_problem_name)
 
-    if opt_type in ["GradientDescent", "NewtonsMethod"]:
+    if opt_type in ["GD", "NewtonsMethod"]:
         save_name = "{}".format(step_size)
     else:
         save_name = "{}_{}_{}".format(step_size, noise_type, sig)
@@ -34,7 +34,7 @@ def save_opt(opt_res, opt_res_X, opt_type, test_problem_name, dim, sig, noise_ty
 def load_opt(opt_type, test_problem_name, sig, noise_type, step_size, seed, problem_type, additional_info={}):
     load_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/{}/{}/{}/".format(problem_type, opt_type, test_problem_name)
     
-    if opt_type in ["GradientDescent", "NewtonsMethod"]:
+    if opt_type in ["GD", "NewtonsMethod"]:
         load_name = "{}".format(step_size)
     else:
         load_name = "{}_{}_{}".format(step_size, noise_type, sig)

@@ -42,7 +42,7 @@ def save_seeds_to_all(exp_path, seeds):
 
 res_dir_path = HOME + "/curr_adventure/exact_sampling/OptimizationResults/Quadratic/"
 
-for opt_type in ["CFD_GD", "FD_GD", "OurMethod_GD"]: # os.listdir(res_dir_path):
+for opt_type in os.listdir(res_dir_path):
     if opt_type == ".DS_Store":
         continue
         

@@ -20,7 +20,7 @@ from AdaptiveFD import adapt_FD
 from FD import FD
 from pow_sampling_set import pow_SG
 
-ARRAY_INDEX = 1 # os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
