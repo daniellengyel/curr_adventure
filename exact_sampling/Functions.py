@@ -12,8 +12,12 @@ import os
 HOME = os.getenv("HOME") 
 
 def get_F(F_type, F_name, sig, noise_type):
-    
-    return generate_quadratic(F_name, sig, noise_type)
+    F = HeartDisease(sig, noise_type)
+    F_no_noise = HeartDisease(0, noise_type)
+    dim = len(F.opt_X)
+    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    return F, x_0
+    # return generate_quadratic(F_name, sig, noise_type)
 
 def generate_quadratic(F_name, sig, noise_type):
     dim, space_type, ub, lb, seed = F_name.split("_")

@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import jax.random as jrandom
 from save_load import save_opt
-from Optimization import BFGS, NewtonMethod, Trust, GradientDescent
+from Optimization import ExactH_GD, InterpH_GD
 from pdfo import newuoa
 
 from NEWUO_test import NEWUOA_Wrapper
@@ -15,7 +15,8 @@ from pow_sampling_set import pow_SG
 from Functions import PyCutestGetter, Quadratic, generate_quadratic, HeartDisease
 from AdaptiveFD import adapt_FD
 from FD import FD
-from BFGSFD import BFGSFD
+from ExactGrad import ExactGrad
+
 
 from tqdm import tqdm
 
@@ -24,14 +25,15 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    sig = 2
-    step_size = 5e-2
+    sig = 1
+    step_size = 1e-1
     noise_type="uniform"
+    h = 2.
 
-    num_total_steps = 50
+    num_total_steps = 100
     grad_eps = 1e-4
 
-    verbose = True
+    verbose = False
 
     # test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
     # F_no_noise = generate_quadratic(test_problem_iter[0], 0, noise_type)
@@ -42,17 +44,15 @@ if __name__ == "__main__":
     F = HeartDisease(sig, noise_type)
     F_no_noise = HeartDisease(0, noise_type)
     dim = len(F.opt_X)
-    x_0 = jnp.ones(dim)
+    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
 
-    jrandom_key = jrandom.PRNGKey(0)
+    jrandom_key = jrandom.PRNGKey(1)
 
-    # # regular BFGS
-    # optimizer = NewtonMethod(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_eps, verbose=True)
-    # final_X, exact_res = optimizer.run_opt()
 
 
     GD_sig = 0
-    optimizer = GradientDescent(x_0, F_no_noise, step_size, num_total_steps, GD_sig, None, grad_eps, verbose=True)
+    grad_getter = ExactGrad()
+    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
     final_X, exact_res, _ = optimizer.run_opt()
 
     # adaptive FD
@@ -65,21 +65,20 @@ if __name__ == "__main__":
     #     final_X, adaptFD_res = optimizer.run_opt()
 
     # standard FD
-    grad_getter = FD(sig, is_central=False, h=1) 
-    optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    grad_getter = FD(sig, is_central=False, h=h, use_H=True) 
+    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
     final_X, FD_res, _ = optimizer.run_opt()
 
 
-
     # Central FD
-    grad_getter = FD(sig, is_central=True, h=1.) 
-    optimizer = BFGS(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    grad_getter = FD(sig, is_central=True, h=h) 
+    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
     final_X, central_FD_res, _ = optimizer.run_opt()
 
 
     # Our Method
-    grad_getter = pow_SG(sig, max_h=2.)
-    optimizer = Trust(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    grad_getter = pow_SG(sig, max_h=h)
+    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
     final_X, our_res, _ = optimizer.run_opt()
 
     # # NEWUOA
