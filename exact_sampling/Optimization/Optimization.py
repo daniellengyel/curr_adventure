@@ -121,6 +121,7 @@ class ExactH_GD(OptimizationBlueprint):
         num_func_calls = 0
         
         H = self.F.f2(X)
+        print(jnp.linalg.cond(H))
         f1, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
         if self.verbose:
@@ -149,7 +150,7 @@ class InterpH_GD(OptimizationBlueprint):
 
     def step_getter(self, X, jrandom_key):
         num_func_calls = 0
-        
+
         if (self.interp_points is not None) and (self.interp_points.shape[1] > 2 * len(X) + 1):
             curr_interp_points = []
             curr_F_vals = []
@@ -186,7 +187,6 @@ class InterpH_GD(OptimizationBlueprint):
         else:
             H = jnp.eye(len(X))
             rbf_f1 = None
-
 
         self.grad_curr, num_func_calls, F_x_0, FS, S = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
@@ -240,10 +240,30 @@ class InterpH_GD(OptimizationBlueprint):
         scale = jnp.array(rbf._scale)
         powers = jnp.array(rbf.powers)
 
-        rbf_f1 = grad(lambda x: self._evaluate(x, y, epsilon, coeffs, shift, scale, powers))
-        rbf_f2 = jacfwd(lambda x: rbf_f1(x))
+        H = self._thin_plate_f2(x_0, y, epsilon, coeffs, shift, scale, powers)
 
-        return rbf_f2(jnp.array(x_0)), rbf_f1(jnp.array(x_0))
+        # rbf_f1 = grad(lambda x: self._evaluate(x, y, epsilon, coeffs, shift, scale, powers))
+        # rbf_f2 = jacfwd(lambda x: rbf_f1(x))
+        # print("H diff approx", jnp.linalg.norm(H - rbf_f2(x_0)))
+
+        f1 = None # rbf_f1(jnp.array(x_0))
+
+        return H, f1
+
+    def _thin_plate_f2(self, x, y, epsilon, coeffs, shift, scale, powers):
+        dim = len(x)
+        p = y.shape[0]
+        yeps = y*epsilon
+        xeps = x*epsilon
+        r = jnp.linalg.norm(xeps - yeps, axis=1)
+
+        log_r = jnp.log(r)
+
+        a = 2 * epsilon**2 * jnp.eye(dim) * (log_r @ coeffs[:p, 0])
+        b = 2 * epsilon**2 * (xeps - yeps).T @ ((coeffs[:p, 0]/r**2).reshape(-1, 1) * (xeps - yeps))
+        c = 2 * epsilon * jnp.eye(dim) * jnp.sum(coeffs[:p, 0])
+
+        return a + b + c
 
 
     def _evaluate(self, x, y, epsilon, coeffs, shift, scale, powers):

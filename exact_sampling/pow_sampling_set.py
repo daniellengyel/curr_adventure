@@ -157,7 +157,13 @@ class pow_SG:
         if len(x_0.shape) != 1:
             x_0 = x_0.reshape(-1)
 
-        S = create_approx_S_multi(H, self.sig, self.max_h, self.pool)
+        if hasattr(F, "_get_dists"):
+            curr_max_h = min(self.max_h, min(F._get_dists(X)[0]))
+        else:
+            curr_max_h = self.max_h
+
+
+        S = create_approx_S_multi(H, self.sig, curr_max_h, self.pool)
         return simplex_gradient(F, x_0, S, jrandom_key)
 
 

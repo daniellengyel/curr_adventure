@@ -6,13 +6,16 @@ from pdfo import newuoa
 
 from NEWUO_test import NEWUOA_Wrapper
 
+from jax.config import config
+config.update("jax_enable_x64", True)
+
 import sys 
 import os 
 HOME = os.getenv("HOME")
 sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 
 from pow_sampling_set import pow_SG
-from Functions import PyCutestGetter, Quadratic, generate_quadratic, HeartDisease
+from Functions import HeartDisease, load_cutest_quadratic, generate_quadratic
 from AdaptiveFD import adapt_FD
 from FD import FD
 from ExactGrad import ExactGrad
@@ -25,28 +28,33 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    sig = 1
-    step_size = 1e-1
+    sig = 2
+    step_size = 0.00001
     noise_type="uniform"
-    h = 2.
+    h = 2
 
-    num_total_steps = 100
+    num_total_steps = 50
     grad_eps = 1e-4
 
-    verbose = False
+    verbose = True
 
-    # test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
-    # F_no_noise = generate_quadratic(test_problem_iter[0], 0, noise_type)
-    # F = generate_quadratic(test_problem_iter[0], sig, noise_type)
-    # dim = 10
-    # x_0 = jnp.zeros(dim)
+    dim = 13
 
-    F = HeartDisease(sig, noise_type)
-    F_no_noise = HeartDisease(0, noise_type)
-    dim = len(F.opt_X)
-    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
+    F_no_noise, x_0 = generate_quadratic(test_problem_iter[0], 0, noise_type)
+    F, x_0 = generate_quadratic(test_problem_iter[0], sig, noise_type)
 
-    jrandom_key = jrandom.PRNGKey(1)
+    # F = HeartDisease(sig, noise_type)
+    # F_no_noise = HeartDisease(0, noise_type)
+    # dim = len(F.opt_X)
+    # x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+
+    # lmbda = 10
+    # F = load_cutest_quadratic("DUAL4", lmbda, sig, noise_type)
+    # F_no_noise = load_cutest_quadratic("DUAL4", lmbda, sig, noise_type)
+    # x_0 = F.x0
+
+    jrandom_key = jrandom.PRNGKey(6)
 
 
 
@@ -55,14 +63,14 @@ if __name__ == "__main__":
     optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
     final_X, exact_res, _ = optimizer.run_opt()
 
-    # adaptive FD
-    # # test_problem_iter = [2] # [19] # range(0, 1)
-    # for i in tqdm(test_problem_iter):
-    #     F_name, x_0, F = PyCutestGetter(i, sig=sig, noise_type=noise_type)
-    #     print(F_name)
-    #     grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
-    #     optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
-    #     final_X, adaptFD_res = optimizer.run_opt()
+    # # adaptive FD
+    # # # test_problem_iter = [2] # [19] # range(0, 1)
+    # # for i in tqdm(test_problem_iter):
+    # #     F_name, x_0, F = PyCutestGetter(i, sig=sig, noise_type=noise_type)
+    # #     print(F_name)
+    # #     grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
+    # #     optimizer = BFGS(x_0, F, c1, c2, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=True)
+    # #     final_X, adaptFD_res = optimizer.run_opt()
 
     # standard FD
     grad_getter = FD(sig, is_central=False, h=h, use_H=True) 
@@ -112,7 +120,7 @@ if __name__ == "__main__":
     plt.plot(our_res[:, 2], our_res[:, 0], label="Our")
     # # plt.plot(newuoa_res, label="NEWUOA")
     plt.xlabel("Func Calls")
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.legend()
     plt.show()
 
@@ -126,7 +134,7 @@ if __name__ == "__main__":
     plt.plot(range(len(our_res[:, 2])), our_res[:, 0], label="Our")
     # plt.plot(newuoa_res, label="NEWUOA")
     plt.xlabel("Number Iterations")
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.legend()
     plt.show()
 

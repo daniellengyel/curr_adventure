@@ -1,3 +1,4 @@
+from re import X
 from sqlite3 import adapt
 import jax.numpy as jnp 
 import jax.random as jrandom
@@ -43,7 +44,130 @@ def generate_quadratic(F_name, sig, noise_type):
     x_0 = jnp.ones(dim)/jnp.sqrt(dim)
     return F, x_0
 
+def generate_QuadLogPoly(F_name, sig, noise_type):
+    dim, space_type, ub, lb, space_type_b, ub_b, lb_b, num_b, seed = F_name.split("_")
+    dim, ub, lb, seed = int(dim), float(ub), float(lb), int(seed)
+    space_type_b, ub_b, lb_b, num_b = float(space_type_b), float(ub_b), float(lb_b), float(num_b)
+    
+    jrandom_key = jrandom.PRNGKey(seed)
 
+    if space_type == "log":
+        eigs = jnp.logspace(lb, ub, dim)
+    else:
+        eigs = jnp.linspace(lb, ub, dim)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    A = jrandom.normal(subkey, shape=(dim, dim,))
+    U, _, _ = jnp.linalg.svd(A) # some rotation matrix
+    Q = 1/2. * U @ jnp.diag(eigs) @ U.T
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    Q_b = jrandom.normal(subkey, shape=(dim,))
+    Quad_sol = jnp.linalg.solve(2 * Q, Q_b)
+
+
+    # get barriers
+    # This defines a region such that the convex hull of the feasible region 
+    # given by an infinite number of barriers forms the level set of U @ jnp.diag(w_Q_eigs) @ U.T 
+    # corresponding to 1.
+    if space_type == "log":
+        w_Q_eigs = jnp.logspace(lb_b, ub_b, dim)
+    else:
+        w_Q_eigs = jnp.linspace(lb_b, ub_b, dim)
+
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    A = jrandom.normal(subkey, shape=(dim, dim,))
+    U, _, _ = jnp.linalg.svd(A) # some rotation matrix
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    ws = jrandom.normal(subkey, shape=(dim, num_b))
+    ws = ws/jnp.linalg.norm(ws, axis=0)
+    ws = U.T @ jnp.diag(w_Q_eigs**1/2.) @ ws 
+    bs = jnp.ones(num_b)
+
+    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    return F, x_0
+
+
+def load_cutest_quadratic(F_name, lmbda, sig, noise_type):
+    """{'HIE1372D': 637, 'KSIP': 20, 'DEGENQPC': 50, 'HS76': 4, 'HS35MOD': 2, 'S268': 5, 
+    'AVGASB': 8, 'HS35I': 3, 'DUAL4': 75, 'AVGASA': 8, 'QPCBLEND': 83, 
+    'DUAL3': 111, 'DUAL2': 96, 'DUAL1': 85, 'GMNCASE3': 175, 'QPCBOEI1': 384, 'GMNCASE2': 175, 
+    'HS76I': 4, 'QPCBOEI2': 143, 'DUALC5': 8, 'DUALC1': 9, 'HS21': 2, 'HS35': 3, 'GMNCASE4': 175, 
+    'TABLE7': 624, 'HS51': 5, 'QPCSTAIR': 385, 'TARGUS': 162, 'HS268': 5, 'HS52': 5, 'HS53': 5,"""
+    cutest_F = pycutest.import_problem(F_name)
+    x0 = cutest_F.x0
+    val, grad = cutest_F.obj(x0, True)
+    Q = 1/2. * cutest_F.ihess(x0)
+    Q_b = grad - 2*Q @ x0
+    Q_c = val - Q_b @ x0 - x0.T @ Q @ x0
+
+    const_vals, ws = cutest_F.cons(x0, gradient=True)
+    bs = const_vals + ws @ x0
+
+    if lmbda is None:
+        lmbda = 1 
+
+    lmbda *= 1/len(ws)
+
+    return QuadLogPolytopeBarrier(Q, Q_b, Q_c, ws, bs, x0, lmbda, sig, noise_type)
+
+
+
+class QuadLogPolytopeBarrier:
+
+    def __init__(self, Q, Q_b, Q_c, ws, bs, x0, lmbda, sig=0, noise_type="gaussian"):
+        """ws.shape = (N, d), bs.shape = (N)"""
+        self.Q = Q
+        self.Q_b = Q_b
+        self.Q_c = Q_c
+
+        self.ws = jnp.array(ws)
+        self.bs = jnp.array(bs)
+
+        self.x0 = x0
+        self.dim = len(x0)
+
+        self.lmbda = lmbda
+        self.sig = sig
+        self.noise_type = noise_type
+
+        self._f1 = grad(lambda x: self.f(x, None))
+        self._f2 = jacfwd(lambda x: self.f1(x))
+        
+    # @partial(jit, static_argnums=(0,))
+    def _get_dists(self, X):
+        """We consider the sum of log barrier (equivalent to considering each barrier to be a potential function).
+        Distance to a hyperplane w.x = b is given by | w.x/|w| - b/|w| |. We consider the absolute value of this, which follows the assumption that if we are on the a side of the hyperplane we stay there. 
+        However, the signs tell us whether we are on the side of the hyperplane which is closer to the origin. If the sign is negative, then we are closer."""
+        
+        X_len_along_ws = X.dot(self.ws.T)/jnp.linalg.norm(self.ws, axis=1)
+        hyperplane_dist = self.bs/jnp.linalg.norm(self.ws, axis=1)
+        dist = X_len_along_ws - hyperplane_dist # dist.shape = (N_ws)
+        signs = 2*(dist * jnp.sign(hyperplane_dist) > 0) - 1
+        return jnp.abs(dist), signs
+    
+    # @partial(jit, static_argnums=(0,))
+    def f(self, X, jrandom_key=None):
+        """x.shape = (d). Outside of the bounded region around zero we are infinite."""
+        dists, signs = self._get_dists(X) 
+        barrier = -jnp.sum(jnp.log(dists))
+        barrier = jnp.where(jnp.any(signs > 0), jnp.inf, barrier)
+        out = X.T @ self.Q @ X + X @ self.Q_b + self.Q_c + self.lmbda * barrier
+
+        if jrandom_key is not None:
+            if self.noise_type == "uniform":
+                eps = self.sig * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
+            else:
+                return out + self.sig * jrandom.normal(jrandom_key) 
+        
+        return out 
+
+    def f1(self, X):
+        return self._f1(X)
+    
+    def f2(self, X):
+        return self._f2(X).reshape(X.size, X.size)
 
 
 class Quadratic:
@@ -190,7 +314,9 @@ class HeartDisease:
         X_data = jnp.array(df.iloc[:,0:13].values) 
         y_data = jnp.array(df.iloc[:,13].values)
 
-        X_std = StandardScaler().fit_transform(X_data)
+        print(jnp.linalg.cond(X_data))
+        print(jnp.linalg.cond(StandardScaler().fit_transform(X_data)))
+        X_std = X_data/100 # StandardScaler().fit_transform(X_data)
 
         self.X_data = X_std
         self.y_data = y_data
@@ -215,4 +341,5 @@ class HeartDisease:
     
     def f2(self, X):
         return self._f2(X).reshape(X.size, X.size)
+
 
