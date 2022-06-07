@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     dim = 63
 
-    test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "log", -2, 4, 0)]
+    test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "lin", 0.001, 1000, 0)]
     F_no_noise, x_0 = generate_quadratic(test_problem_iter[0], 0, noise_type)
     F, x_0 = generate_quadratic(test_problem_iter[0], sig, noise_type)
 

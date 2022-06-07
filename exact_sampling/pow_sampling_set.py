@@ -37,6 +37,28 @@ def get_S_pow_index_sets_rand(D_diag, jrandom_key=None):
             res.append(None)
     return res
 
+def old_get_S_pow_index_sets(D_diag,):
+    """Returns a set of sets. Each set with the indecies of H to use."""
+    dim = len(D_diag)
+    curr_n = int(math.log2(dim))
+    res = []
+    curr_start = 0
+    curr_end = dim
+    while curr_n >= 0:
+
+        if dim >= 2**curr_n:
+            dim = dim - 2**curr_n
+            next_start = int(curr_start + 2**(curr_n-1))
+            next_end = int(curr_end - 2**(curr_n-1)) # will round down when curr_n == 0 while the one above will not round up. so we are good. 
+            res.append(jnp.array(list(range(curr_start, next_start)) + list(range(next_end, curr_end))))
+            curr_start = next_start
+            curr_end = next_end
+            curr_n -= 1
+        else:
+            curr_n -= 1
+            res.append(None)
+    return res[::-1]
+
 def get_S_pow_index_sets(D_diag,):
     """Returns a set of sets. Each set with the indecies of H to use."""
     dim = len(D_diag)
@@ -150,9 +172,12 @@ def create_approx_S_multi(H, sig, max_h, pool):
 
     S_pow_index_set = get_S_pow_index_sets(D_diag)
     all_pow_U = generate_all_pow_U(max(S_pow_index_set.keys()) + 1)
+    # all_pow_U = generate_all_pow_U(len(S_pow_index_set))
+
     pool_inp = []
     for i in range(len(all_pow_U)):
         if i in S_pow_index_set:
+        # if S_pow_index_set[i] is not None:
             pool_inp.append((D_diag, sig, max_h, np.zeros(shape=(dim, dim,)), jnp.array(S_pow_index_set[i]), all_pow_U[i]))
 
     if len(pool_inp) > 2 and pool is not None:
