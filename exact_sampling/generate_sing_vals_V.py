@@ -66,15 +66,18 @@ def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)
     sig = max(sig, 1e-4) # machine precision roughly 
 
+    # print(D_diag)
+
     if 0 not in D_diag:
         lmbda = lambda_coeff_zero(D_diag, sig)
     else:
         lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
     
-    if jnp.max(lmbda) > max_h**2:
+    if (max_h is not None) and jnp.max(lmbda) > max_h**2:
         lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
 
     sing_vals = jnp.diag(lmbda**0.5)
+    # print(lmbda**0.5)
 
     V = jnp.eye(dim)
 

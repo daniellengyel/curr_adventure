@@ -20,9 +20,10 @@ class FD:
             S = jnp.eye(len(x_0)) * self.h
             S = jnp.concatenate([S, -S], axis=1)
         else:
-            if (not self.use_H) and (H is not None):
+            if self.use_H and (H is not None):
                 S = jnp.diag(2 * jnp.sqrt(self.sig / jnp.abs(jnp.diag(H))))
-                S = jnp.minimum(S, self.h)
+                if self.h is not None:
+                    S = jnp.minimum(S, self.h)
             else:
                 S = jnp.eye(len(x_0)) * self.h
         return simplex_gradient(F, x_0, S, jrandom_key)

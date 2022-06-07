@@ -55,7 +55,7 @@ class OptimizationBlueprint:
                 search_direction, f1, num_func_calls = self.step_getter(X)
             total_func_calls += num_func_calls
 
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(f1 - self.F.f1(X)))/jnp.linalg.norm(self.F.f1(X))))# jnp.linalg.norm(X - self.x_init)))#float(self.grad_curr.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(self.grad_curr)))) # jnp.linalg.norm(self.F.f1(X)))) # #float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(f1.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(f1))))#  float(jnp.linalg.norm(f1 - self.F.f1(X)))/jnp.linalg.norm(self.F.f1(X))))# jnp.linalg.norm(X - self.x_init)))# # jnp.linalg.norm(self.F.f1(X)))) # #float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if jnp.linalg.norm(f1)/self.dim < self.grad_eps:
@@ -121,7 +121,6 @@ class ExactH_GD(OptimizationBlueprint):
         num_func_calls = 0
         
         H = self.F.f2(X)
-        print(jnp.linalg.cond(H))
         f1, num_func_calls, _, _, _ = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
         if self.verbose:

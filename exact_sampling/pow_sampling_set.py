@@ -40,25 +40,51 @@ def get_S_pow_index_sets_rand(D_diag, jrandom_key=None):
 def get_S_pow_index_sets(D_diag,):
     """Returns a set of sets. Each set with the indecies of H to use."""
     dim = len(D_diag)
-    curr_n = int(math.log2(dim))
-    res = []
-    curr_start = 0
-    curr_end = dim
-    while curr_n >= 0:
+    binary_dim = (bin(dim)[2:])[::-1]
+    res = {}
+    for i in range(len(binary_dim)):
+        if binary_dim[i] == "1":
+            res[i] = []
+            
+    bin_used = sorted(res.keys())
+    
+    curr_n = len(bin_used) - 1
+    upper_n = curr_n + 1
+    lower_n = 0
 
-        if dim >= 2**curr_n:
-            dim = dim - 2**curr_n
-            next_start = int(curr_start + 2**(curr_n-1))
-            next_end = int(curr_end - 2**(curr_n-1)) # will round down when curr_n == 0 while the one above will not round up. so we are good. 
-            res.append(jnp.array(list(range(curr_start, next_start)) + list(range(next_end, curr_end))))
-            curr_start = next_start
-            curr_end = next_end
+    end_mid = True
+    
+    start = 0
+    if end_mid:
+        end = len(D_diag) // 2 + len(D_diag) % 2 
+    else:
+        end = len(D_diag) - 1
+    
+    argsorted_D_diag = jnp.argsort(D_diag)
+    while end < len(D_diag) and start < end:
+        while len(res[bin_used[curr_n]]) == 2**bin_used[curr_n]:
             curr_n -= 1
+            curr_n = curr_n % upper_n
+            
+        curr_exp = bin_used[curr_n]
+        if curr_exp == 0:
+            res[curr_exp].append(int(argsorted_D_diag[start]))
+            start += 1
         else:
-            curr_n -= 1
-            res.append(None)
-    return res[::-1]
+            res[curr_exp].append(int(argsorted_D_diag[start]))
+            res[curr_exp].append(int(argsorted_D_diag[end]))
+            start += 1
+            if end_mid:
+                end += 1
+            else:
+                end -=1
 
+        curr_n -= 1
+        curr_n = curr_n % upper_n
+
+        
+
+    return res
 
 def generate_all_pow_U(n):
     """Return matrix with dim 2^n x 2^n"""
@@ -76,7 +102,7 @@ def permute_rows(M, i, j):
     M[j] = tmp_row
     return M
 
-def create_approx_S(H, sig):
+def create_approx_S(H, sig, all_pow_U=None):
     dim = H.shape[0] 
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
@@ -87,7 +113,8 @@ def create_approx_S(H, sig):
     D_diag = jnp.diag(D)
 
     S_pow_index_set = get_S_pow_index_sets(D_diag)
-    all_pow_U = generate_all_pow_U(len(S_pow_index_set))
+    if all_pow_U is None:
+        all_pow_U = generate_all_pow_U(len(S_pow_index_set))
     S = np.zeros(shape=(dim, dim, ))
 
     for i in range(len(all_pow_U)):
@@ -122,12 +149,11 @@ def create_approx_S_multi(H, sig, max_h, pool):
     D_diag = jnp.diag(D)
 
     S_pow_index_set = get_S_pow_index_sets(D_diag)
-    all_pow_U = generate_all_pow_U(len(S_pow_index_set))
-
+    all_pow_U = generate_all_pow_U(max(S_pow_index_set.keys()) + 1)
     pool_inp = []
     for i in range(len(all_pow_U)):
-        if S_pow_index_set[i] is not None:
-            pool_inp.append((D_diag, sig, max_h, np.zeros(shape=(dim, dim,)), S_pow_index_set[i], all_pow_U[i]))
+        if i in S_pow_index_set:
+            pool_inp.append((D_diag, sig, max_h, np.zeros(shape=(dim, dim,)), jnp.array(S_pow_index_set[i]), all_pow_U[i]))
 
     if len(pool_inp) > 2 and pool is not None:
         res = pool.starmap(helper_create_approx_S_multi, pool_inp)
@@ -150,6 +176,8 @@ class pow_SG:
             self.pool = None
         else:
             self.pool = Pool(processes=int(NUM_CPU))
+
+        # all_pow_U = generate_all_pow_U(len(S_pow_index_set))
 
     def grad(self, F, X, jrandom_key, H):
 
