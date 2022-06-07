@@ -48,14 +48,20 @@ def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_
         general_opt_type = opt_specs[0]
 
     if general_opt_type == "Ours":
-        grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
+        if H_get_type == "Exact":
+            grad_getter = pow_SG(sig, max_h=None, NUM_CPU=1)
+        else:
+            grad_getter = pow_SG(sig, max_h=param_dict["h"], NUM_CPU=1)
     elif general_opt_type == "CFD":
         grad_getter = FD(sig, is_central=True, h=param_dict["h"], use_H=False) 
     elif general_opt_type == "FD":
         if H_get_type is not None: 
-            grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=True) 
-        else: 
-            grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=True) 
+            if H_get_type == "Exact":
+                grad_getter = FD(sig, is_central=False, h=None, use_H=True) 
+            else:
+                grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=True) 
+        else:
+            grad_getter = FD(sig, is_central=False, h=param_dict["h"], use_H=False) 
     elif general_opt_type == "AdaptFD":
         grad_getter = adapt_FD(sig, rl=1.5, ru=6) 
     elif general_opt_type == "GD":
@@ -76,21 +82,22 @@ if __name__ == "__main__":
 
 
 
-    num_total_steps = 500
+    num_total_steps = 250
     grad_eps = 1e-5
 
     verbose = False
 
     noise_type="uniform"
-    num_trials = 50
+    num_trials = 10
     SIGS = [1, 10]
-    STEP_SIZES = [1e-3, 1e-4, 1e-5]
-    HS = [5e-3, 0.1, 0.5, 1.0, 2.0]
+    STEP_SIZES = [1e-4, 7.5e-5, 5e-5, 2.5e-5, 1e-5]
+    HS = [0.1, 0.5, 1.0, 20.0, 100.0]
     SMOOTHINGS = [0, 1, 5, 20]
     SEEDS = list(range(num_trials))
-    OPT_TYPES = ["GD", "FD", "CFD", "AdaptFD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
+    OPT_TYPES = ["GD", "FD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
     F_TYPE = "Quadratic"
-    F_NAMES = ["{}_{}_{}_{}_{}".format(50, "log", -2, 4, 0)] # dim, interp_type, lw, ub, seed
+    dim = 63
+    F_NAMES = ["{}_{}_{}_{}_{}".format(dim, "lin", 0.001, 1000, 0)] # dim, interp_type, lw, ub, seed
 
     # GD = len(STEP_SIZES)
     # ADAPT = GD * len(SEEDS) * len(SIGS) 
@@ -111,7 +118,7 @@ if __name__ == "__main__":
                 else:
                     for sig in SIGS:
                         for seed in SEEDS:
-                            if opt_type == "AdaptFD":
+                            if ("Exact" in opt_type) or opt_type == "AdaptFD":
                                 inp_list.append((F_TYPE, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose, {}))
                             else:
                                 for h in HS:
@@ -126,6 +133,7 @@ if __name__ == "__main__":
     ub = min(math.ceil(num_inps / NUM_ARRAY) * (ARRAY_INDEX + 1), len(inp_list))
     lb = math.ceil(num_inps / NUM_ARRAY) * ARRAY_INDEX
 
+    print(num_inps)
     for i in tqdm(range(lb, ub)):
         run_exp(*inp_list[i])
 
