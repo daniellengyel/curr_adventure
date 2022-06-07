@@ -83,14 +83,14 @@ if __name__ == "__main__":
 
     noise_type="uniform"
     num_trials = 50
-    SIGS = [1]
-    STEP_SIZES = [1e-1, 1e-2]
+    SIGS = [1, 10]
+    STEP_SIZES = [1e-3, 1e-4, 1e-5]
     HS = [5e-3, 0.1, 0.5, 1.0, 2.0]
     SMOOTHINGS = [0, 1, 5, 20]
     SEEDS = list(range(num_trials))
     OPT_TYPES = ["GD", "FD", "CFD", "AdaptFD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
-    F_TYPE = "Logistic"
-    F_NAMES = ["Heart"] #["{}_{}_{}_{}_{}".format(10, "log", -2, 4, 0)] # dim, interp_type, lw, ub, seed
+    F_TYPE = "Quadratic"
+    F_NAMES = ["{}_{}_{}_{}_{}".format(50, "log", -2, 4, 0)] # dim, interp_type, lw, ub, seed
 
     # GD = len(STEP_SIZES)
     # ADAPT = GD * len(SEEDS) * len(SIGS) 

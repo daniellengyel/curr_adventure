@@ -13,12 +13,12 @@ import os
 HOME = os.getenv("HOME") 
 
 def get_F(F_type, F_name, sig, noise_type):
-    F = HeartDisease(sig, noise_type)
-    F_no_noise = HeartDisease(0, noise_type)
-    dim = len(F.opt_X)
-    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
-    return F, x_0
-    # return generate_quadratic(F_name, sig, noise_type)
+    # F = HeartDisease(sig, noise_type)
+    # F_no_noise = HeartDisease(0, noise_type)
+    # dim = len(F.opt_X)
+    # x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    # return F, x_0
+    return generate_quadratic(F_name, sig, noise_type)
 
 def generate_quadratic(F_name, sig, noise_type):
     dim, space_type, ub, lb, seed = F_name.split("_")
@@ -32,9 +32,10 @@ def generate_quadratic(F_name, sig, noise_type):
         eigs = jnp.linspace(lb, ub, dim)
 
     jrandom_key, subkey = jrandom.split(jrandom_key)
-    Q = jrandom.normal(subkey, shape=(dim, dim,))
-    Q = 1/2. * Q @ Q.T 
-    Q = Q + jnp.diag(eigs)
+    A = jrandom.normal(subkey, shape=(dim, dim,))
+    U, _, _ = jnp.linalg.svd(A) # some rotation matrix
+    
+    Q = U @ jnp.diag(eigs) @ U.T
 
     jrandom_key, subkey = jrandom.split(jrandom_key)
     b = jrandom.normal(subkey, shape=(dim,))
