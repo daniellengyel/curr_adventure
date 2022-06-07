@@ -149,7 +149,6 @@ class InterpH_GD(OptimizationBlueprint):
 
     def step_getter(self, X, jrandom_key):
         num_func_calls = 0
-
         if (self.interp_points is not None) and (self.interp_points.shape[1] > 2 * len(X) + 1):
             curr_interp_points = []
             curr_F_vals = []
@@ -161,9 +160,8 @@ class InterpH_GD(OptimizationBlueprint):
             #         curr_interp_points.append(self.interp_points[:, i])
             #         curr_F_vals.append(self.F_vals[i])
 
-            curr_interp_points = self.interp_points # jnp.array(curr_interp_points).T # self.interp_points[:, -self.dim**2 * 2:]
-            curr_F_vals = self.F_vals # jnp.array(curr_F_vals) # self.F_vals[-self.dim**2 * 2 : ] # 
-
+            curr_interp_points = self.interp_points[:, int(-self.dim**2 * 2):]# self.interp_points # jnp.array(curr_interp_points).T # 
+            curr_F_vals = self.F_vals[-int(self.dim**2 * 2): ] # self.F_vals # jnp.array(curr_F_vals) # 
             # print("num F sub", len(curr_F_vals))
 
             # curr_interp_points = curr_interp_points[:, -int(self.dim**2/8):]
@@ -189,7 +187,6 @@ class InterpH_GD(OptimizationBlueprint):
 
         self.grad_curr, num_func_calls, F_x_0, FS, S = self.grad_getter.grad(self.F, X, jrandom_key, H=H)
 
-
         if self.interp_points is None:
             self.interp_points = jnp.concatenate([S + X.reshape(-1, 1), X.reshape(-1, 1)], axis=1)
             self.F_vals = jnp.concatenate([FS, jnp.array([F_x_0])])
@@ -201,7 +198,7 @@ class InterpH_GD(OptimizationBlueprint):
 
             print("Grad diff", jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X)))
             print("H diff", jnp.linalg.norm(H - self.F.f2(X))/jnp.linalg.norm(self.F.f2(X)))
-            print("H eigs", jnp.linalg.eigh(self.F.f2(X))[0])
+            # print("H eigs", (jnp.linalg.eigh(H)[0] - jnp.linalg.eigh(self.F.f2(X))[0])/jnp.linalg.eigh(self.F.f2(X))[0])
             
         f1 = self.grad_curr
 
@@ -231,7 +228,6 @@ class InterpH_GD(OptimizationBlueprint):
     def get_H_rbf(self, x_0, S, F_vals):
 
         rbf = RBFInterpolator(S.T, F_vals, smoothing=self.smoothing) #, epsilon=0.1, kernel="gaussian")
-
         coeffs = jnp.array(rbf._coeffs)
         y = jnp.array(rbf.y)
         epsilon = rbf.epsilon
@@ -246,6 +242,7 @@ class InterpH_GD(OptimizationBlueprint):
         # print("H diff approx", jnp.linalg.norm(H - rbf_f2(x_0)))
 
         f1 = None # rbf_f1(jnp.array(x_0))
+
 
         return H, f1
 

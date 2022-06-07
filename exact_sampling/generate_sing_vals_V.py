@@ -77,7 +77,7 @@ def generate_sing_vals_V(D_diag, sig, max_h):
         lmbda = lambda_coeff_zero_set_max_lambda(D_diag, max_h**2, sig)
 
     sing_vals = jnp.diag(lmbda**0.5)
-    # print(lmbda**0.5)
+    print(lmbda**0.5)
 
     V = jnp.eye(dim)
 

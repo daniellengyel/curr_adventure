@@ -21,7 +21,7 @@ from FD import FD
 from pow_sampling_set import pow_SG
 from ExactGrad import ExactGrad
 
-ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = 10 # os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
@@ -73,7 +73,7 @@ def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_
         optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
 
     _, res, res_X = optimizer.run_opt()
-    save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, "Quadratic", param_dict)
+    # save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, "Quadratic", param_dict)
 
         
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     num_total_steps = 250
     grad_eps = 1e-5
 
-    verbose = False
+    verbose = True
 
     noise_type="uniform"
     num_trials = 10

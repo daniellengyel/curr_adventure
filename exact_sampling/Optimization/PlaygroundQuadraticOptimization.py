@@ -31,14 +31,14 @@ if __name__ == "__main__":
     sig = 10
     step_size = 5e-5
     noise_type="uniform"
-    h = None
+    h = 50
 
     num_total_steps = 100
     grad_eps = 1e-4
 
     verbose = True
 
-    dim = 63
+    dim = 32
 
     test_problem_iter = ["{}_{}_{}_{}_{}".format(dim, "lin", 0.001, 1000, 0)]
     F_no_noise, x_0 = generate_quadratic(test_problem_iter[0], 0, noise_type)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     # standard FD
     grad_getter = FD(sig, is_central=False, h=h, use_H=True) 
-    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    optimizer = InterpH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose, smoothing=1)  
     final_X, FD_res, _ = optimizer.run_opt()
 
 
@@ -85,8 +85,8 @@ if __name__ == "__main__":
 
 
     # # Our Method
-    grad_getter = pow_SG(sig, max_h=None)
-    optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
+    grad_getter = pow_SG(sig, max_h=h)
+    optimizer = InterpH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose, smoothing=1)  
     final_X, our_res, _ = optimizer.run_opt()
 
     # # NEWUOA
