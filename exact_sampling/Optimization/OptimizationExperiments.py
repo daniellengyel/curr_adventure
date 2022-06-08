@@ -31,7 +31,7 @@ if ARRAY_INDEX is None:
 else:
     ARRAY_INDEX = int(ARRAY_INDEX)
     
-NUM_ARRAY = 10
+NUM_ARRAY = 50
 
 def run_gd_approx_exp(opt_type, F_name, x_0, sig, noise_type, grad_eps, step_size, num_total_steps, seed, verbose, param_dict={}):
     jrandom_key = jrandom.PRNGKey(seed=seed)

@@ -1,7 +1,7 @@
 #!/bin/bash
-#PBS -lselect=1:ncpus=1:mem=96gb
+#PBS -lselect=1:ncpus=4:mem=96gb
 #PBS -lwalltime=24:00:00
-#PBS -J 1-15
+#PBS -J 1-20
 
 export PATH=$HOME/miniconda3/bin/:$PATH
 export PATH_TO_ADV_FOLDER=$HOME/new_adventure

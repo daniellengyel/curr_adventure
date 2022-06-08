@@ -21,7 +21,7 @@ from FD import FD
 from pow_sampling_set import pow_SG
 from ExactGrad import ExactGrad
 
-ARRAY_INDEX = 10 # os.getenv("PBS_ARRAY_INDEX")
+ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")
 if ARRAY_INDEX is None:
     ARRAY_INDEX = 1
 else:
@@ -29,7 +29,7 @@ else:
 
 ARRAY_INDEX -= 1
     
-NUM_ARRAY = 15
+NUM_ARRAY = 20
 
 def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_total_steps, seed, verbose=False, param_dict={}):
     
@@ -73,7 +73,7 @@ def run_exp(F_type, F_name, sig, noise_type, opt_type, grad_eps, step_size, num_
         optimizer = ExactH_GD(x_0, F, step_size, num_total_steps, sig, jrandom_key, grad_getter, grad_eps, verbose=verbose)  
 
     _, res, res_X = optimizer.run_opt()
-    # save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, "Quadratic", param_dict)
+    save_opt(res, res_X, opt_type, F_name, dim, sig, noise_type, step_size, seed, "Quadratic", param_dict)
 
         
 
@@ -85,18 +85,18 @@ if __name__ == "__main__":
     num_total_steps = 250
     grad_eps = 1e-5
 
-    verbose = True
+    verbose = False
 
     noise_type="uniform"
     num_trials = 10
     SIGS = [1, 10]
     STEP_SIZES = [1e-4, 7.5e-5, 5e-5, 2.5e-5, 1e-5]
-    HS = [0.1, 0.5, 1.0, 20.0, 100.0]
+    HS = [0.1, 0.5, 1.0, 25.0, 100.0]
     SMOOTHINGS = [0, 1, 5, 20]
     SEEDS = list(range(num_trials))
-    OPT_TYPES = ["GD", "FD", "Interp_Ours", "Exact_FD", "Interp_FD", "Exact_Ours"]
+    OPT_TYPES = ["GD", "FD", "Exact_FD", "Interp_Ours",  "Exact_Ours"]
     F_TYPE = "Quadratic"
-    dim = 63
+    dim = 31
     F_NAMES = ["{}_{}_{}_{}_{}".format(dim, "lin", 0.001, 1000, 0)] # dim, interp_type, lw, ub, seed
 
     # GD = len(STEP_SIZES)
@@ -133,7 +133,6 @@ if __name__ == "__main__":
     ub = min(math.ceil(num_inps / NUM_ARRAY) * (ARRAY_INDEX + 1), len(inp_list))
     lb = math.ceil(num_inps / NUM_ARRAY) * ARRAY_INDEX
 
-    print(num_inps)
     for i in tqdm(range(lb, ub)):
         run_exp(*inp_list[i])
 
