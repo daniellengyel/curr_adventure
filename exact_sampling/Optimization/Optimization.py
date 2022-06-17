@@ -44,7 +44,7 @@ class OptimizationBlueprint:
         vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, 0))
         x_arr.append(X)
 
-        for t in range(self.loop_steps_remaining):
+        for t in tqdm(range(self.loop_steps_remaining)):
 
             
             # get search direction
@@ -55,7 +55,7 @@ class OptimizationBlueprint:
                 search_direction, f1, num_func_calls = self.step_getter(X)
             total_func_calls += num_func_calls
 
-            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(f1.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(f1))))#  float(jnp.linalg.norm(f1 - self.F.f1(X)))/jnp.linalg.norm(self.F.f1(X))))# jnp.linalg.norm(X - self.x_init)))# # jnp.linalg.norm(self.F.f1(X)))) # #float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
+            vals_arr.append((self.F.f(X), time.time() - start_time, total_func_calls, float(jnp.linalg.norm(f1 - self.F.f1(X))))) # jnp.linalg.norm(X - self.F.x_opt))) #float(f1.T @ self.F.f1(X)) / (jnp.linalg.norm(self.F.f1(X)) * jnp.linalg.norm(f1))))#  float(jnp.linalg.norm(f1 - self.F.f1(X)))/jnp.linalg.norm(self.F.f1(X))))# jnp.linalg.norm(X - self.x_init)))# # jnp.linalg.norm(self.F.f1(X)))) # #float(jnp.linalg.norm(self.grad_curr - self.F.f1(X))/jnp.linalg.norm(self.F.f1(X))))) #/jnp.linalg.norm(self.F.f1(X))))) jnp.linalg.norm(alpha * search_direction))) #
             x_arr.append(X)
 
             if jnp.linalg.norm(f1)/self.dim < self.grad_eps:
@@ -160,8 +160,8 @@ class InterpH_GD(OptimizationBlueprint):
             #         curr_interp_points.append(self.interp_points[:, i])
             #         curr_F_vals.append(self.F_vals[i])
 
-            curr_interp_points = self.interp_points[:, int(-self.dim**2 * 2):]# self.interp_points # jnp.array(curr_interp_points).T # 
-            curr_F_vals = self.F_vals[-int(self.dim**2 * 2): ] # self.F_vals # jnp.array(curr_F_vals) # 
+            curr_interp_points = self.interp_points[:, -1000:] # int(-self.dim**2 * 2):]# self.interp_points # jnp.array(curr_interp_points).T # 
+            curr_F_vals = self.F_vals[-1000:] # [-int(self.dim**2 * 2): ] # self.F_vals # jnp.array(curr_F_vals) # 
             # print("num F sub", len(curr_F_vals))
 
             # curr_interp_points = curr_interp_points[:, -int(self.dim**2/8):]

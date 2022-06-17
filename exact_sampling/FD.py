@@ -26,5 +26,6 @@ class FD:
                     S = jnp.minimum(S, self.h)
             else:
                 S = jnp.eye(len(x_0)) * self.h
+
         return simplex_gradient(F, x_0, S, jrandom_key)
         

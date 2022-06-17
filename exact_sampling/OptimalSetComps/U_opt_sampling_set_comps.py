@@ -15,8 +15,8 @@ import os
 HOME = os.getenv("HOME")
 sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 
-from generate_sing_vals_V import generate_sing_vals_V
-from U_opt_sampling_set import generate_regular_simplex, orthog_linesearch, convert_to_U
+from Ours.generate_sing_vals_V import generate_sing_vals_V
+from Ours.U_opt_sampling_set import generate_regular_simplex, orthog_linesearch, convert_to_U
 
 def optimize_W(A, P, sing_vals, V, U_D, num_iter, jrandom_key, loss, x_init=None):
     """Constraint is U.c = \bar{c} 1 and U.U^T = I"""

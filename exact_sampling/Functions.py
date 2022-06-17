@@ -38,11 +38,14 @@ def generate_quadratic(F_name, sig, noise_type):
     Q = U @ jnp.diag(eigs) @ U.T
 
     jrandom_key, subkey = jrandom.split(jrandom_key)
-    b = jrandom.normal(subkey, shape=(dim,))
+    b = jrandom.normal(subkey, shape=(dim,)) 
+    c = 0
 
-    F = Quadratic(Q, b, sig, noise_type)
+    F = Quadratic(Q, b, c, sig, noise_type)
 
-    x_0 = jnp.ones(dim)/jnp.sqrt(dim)
+    jrandom_key, subkey = jrandom.split(jrandom_key)
+    x_0 = jrandom.normal(subkey, shape=(dim,))
+    x_0 = x_0 / jnp.linalg.norm(x_0)
     return F, x_0
 
 def generate_QuadLogPoly(F_name, sig, noise_type):
@@ -172,17 +175,19 @@ class QuadLogPolytopeBarrier:
 
 
 class Quadratic:
-    def __init__(self, Q, b, sig=0,  noise_type="gaussian"):
+    def __init__(self, Q, b, c, sig=0,  noise_type="gaussian"):
         self.Q = Q
         self.b = b
+        self.c = c
         self.sig = sig
         self.noise_type = noise_type
         self._f1 = grad(lambda x: self.f(x, None))
         self._f2 = jacfwd(lambda x: self.f1(x))
+        self.x_opt = -1/2. * jnp.linalg.solve(Q, b)
         
         
     def f(self, X, jrandom_key=None):
-        out = X.T @ self.Q @ X + X.dot(self.b)
+        out = X.T @ self.Q @ X + X.dot(self.b) + self.c
         
         if jrandom_key is not None:
             if self.noise_type == "uniform":
