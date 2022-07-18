@@ -9,7 +9,7 @@ import time
 from jax.config import config
 config.update("jax_enable_x64", True)
 
-from generate_sing_vals_V import loss_getter
+from Ours.generate_sing_vals_V import loss_getter
 from simplex_gradient import simplex_gradient
 
 def set_loss(F, x_0, H, sig, coeff, num_runs):

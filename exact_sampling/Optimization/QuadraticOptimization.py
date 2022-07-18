@@ -18,7 +18,7 @@ from Functions import get_F
 
 from AdaptiveFD import adapt_FD
 from FD import FD
-from pow_sampling_set import pow_SG
+from Ours.pow_sampling_set import pow_SG
 from ExactGrad import ExactGrad
 
 ARRAY_INDEX = os.getenv("PBS_ARRAY_INDEX")

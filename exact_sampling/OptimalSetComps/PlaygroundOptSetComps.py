@@ -21,7 +21,7 @@ import os
 HOME = os.getenv("HOME")
 sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 from Functions import PyCutestGetter
-from generate_sing_vals_V import loss_getter
+from Ours.generate_sing_vals_V import loss_getter
 from simplex_gradient import simplex_gradient
 
 import pow_sampling_set_comps
