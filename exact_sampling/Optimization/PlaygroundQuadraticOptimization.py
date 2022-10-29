@@ -16,7 +16,7 @@ sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 
 from Ours import Ours
 from Functions import HeartDisease, load_cutest_quadratic, generate_quadratic, PyCutestGetter
-from AdaptiveFD import adapt_FD
+from archive.AdaptiveFD import adapt_FD
 from FD import FD
 from ExactGrad import ExactGrad
 

@@ -261,20 +261,3 @@ class InterpH_GD(OptimizationBlueprint):
 
         return a + b + c
 
-
-    def _evaluate(self, x, y, epsilon, coeffs, shift, scale, powers):
-        p = y.shape[0]
-
-        yeps = y*epsilon
-        xeps = x*epsilon
-        xhat = (x - shift)/scale
-
-        r = jnp.linalg.norm(xeps - yeps, axis=1)
-        kernel_vec = r**2 * jnp.log(r)
-        # kernel_vec = jnp.exp(-r**2) # jnp.nan_to_num(kernel_vec, 0)
-        
-        poly_vec = jnp.prod(xhat ** powers, axis=1)
-
-        out = kernel_vec @ coeffs[:p, 0] + poly_vec @ coeffs[p:, 0]
-
-        return out

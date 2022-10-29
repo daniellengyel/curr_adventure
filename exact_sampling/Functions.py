@@ -349,3 +349,30 @@ class HeartDisease:
         return self._f2(X).reshape(X.size, X.size)
 
 
+class Ackley:
+    
+    def __init__(self, sig=0,  noise_type="gaussian"):
+        self.sig = sig
+        self.noise_type = noise_type
+        self._f1 = grad(lambda x: self.f(x, None))
+        self._f2 = jacfwd(lambda x: self.f1(x))
+
+    def f(self, X, jrandom_key=None):
+        xs = X.T
+        out_shape = xs[0].shape
+        a = jnp.exp(-0.2 * jnp.sqrt(1. / len(xs) * jnp.square(jnp.linalg.norm(xs, axis=0))))
+        b = - jnp.exp(1. / len(xs) * jnp.sum(jnp.cos(2 * jnp.pi * xs), axis=0))
+        out = jnp.array(-20 * a + b + 20 + jnp.exp(1)).reshape(out_shape)
+        if jrandom_key is not None:
+            if self.noise_type == "uniform":
+                eps = self.sig * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
+            else:
+                return out + self.sig * jrandom.normal(jrandom_key) 
+        return out 
+
+    def f1(self, X):
+        return self._f1(X)
+    
+    def f2(self, X):
+        return self._f2(X).reshape(X.size, X.size)

@@ -16,7 +16,7 @@ sys.path.append(HOME + "/curr_adventure/exact_sampling/")
 
 from Functions import get_F
 
-from AdaptiveFD import adapt_FD
+from archive.AdaptiveFD import adapt_FD
 from FD import FD
 from Ours.pow_sampling_set import pow_SG
 from ExactGrad import ExactGrad
