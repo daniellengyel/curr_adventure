@@ -6,8 +6,8 @@ from scipy.interpolate import RBFInterpolator
 
 
 class RBF:
-    def __init__(self, S, F_vals, smoothing):
-        self.rbf = RBFInterpolator(S.T, F_vals, smoothing=smoothing) #, epsilon=0.1, kernel="gaussian")
+    def __init__(self, X, F_vals, smoothing):
+        self.rbf = RBFInterpolator(X.T, F_vals, smoothing=smoothing) #, epsilon=0.1, kernel="gaussian")
         self.coeffs = jnp.array(self.rbf._coeffs)
         self.y = jnp.array(self.rbf.y)
         self.epsilon = self.rbf.epsilon

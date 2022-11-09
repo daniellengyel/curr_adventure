@@ -20,7 +20,7 @@ class Ours:
         self.sig = sig
         self.max_h = max_h
 
-        # all_pow_U = generate_all_pow_U(len(S_pow_index_set))
+        self.last_S_size = None
 
     def grad(self, F, X, jrandom_key, H):
 
@@ -35,5 +35,5 @@ class Ours:
 
 
         S = create_approx_S(H, self.sig, curr_max_h)
-        # print(S)
+        self.last_S_size = jnp.linalg.norm(S)
         return simplex_gradient(F, x_0, S, jrandom_key)
