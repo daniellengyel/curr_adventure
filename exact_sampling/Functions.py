@@ -5,6 +5,8 @@ import jax.random as jrandom
 from jax import jit, grad, jacfwd
 import pycutest
 
+from functools import partial 
+
 from sklearn.preprocessing import StandardScaler 
 
 import pandas as pd 
@@ -185,7 +187,7 @@ class Quadratic:
         self._f2 = jacfwd(lambda x: self.f1(x))
         self.x_opt = -1/2. * jnp.linalg.solve(Q, b)
         
-        
+    @partial(jit, static_argnums=(0,))
     def f(self, X, jrandom_key=None):
         out = X.T @ self.Q @ X + X.dot(self.b) + self.c
         

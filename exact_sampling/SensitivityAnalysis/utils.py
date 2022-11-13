@@ -33,8 +33,8 @@ def mse_sensitivity(F_true, F_tilde, sig, pts, rbf_f, h_space, jrandom_key, num_
             true_grad = grad_getter_cfd_true.grad(F_true, p, jrandom_key=subkey, H=None)[0]
             if k == 0:
                 res_rbf.append(jnp.linalg.norm(rbf_f.f1(p) - true_grad))
-                print(jnp.linalg.cond(H))
-                print(jnp.linalg.eigh(H)[0])
+                # print(jnp.linalg.cond(H))
+                # print(jnp.linalg.eigh(H)[0])
 
             for h_i, h in enumerate(h_space):
 
@@ -51,13 +51,17 @@ def mse_sensitivity(F_true, F_tilde, sig, pts, rbf_f, h_space, jrandom_key, num_
         
 
 # Get all RBF
-def get_rbfs(Fs, prmts_0, N_pts, prct_bound, jrandom_key, smoothing=0):
+def get_rbfs(Fs, prmts_0, N_pts, prct_bound, jrandom_key, fixed_bound=None, smoothing=0):
     res = []
     
     
     jrandom_key, subkey = jrandom.split(jrandom_key)
-    pts_prct = prct_bound*(jrandom.uniform(subkey, shape=(N_pts, len(prmts_0))) - 0.5)*2
-    prmts_fine = prmts_0.reshape(1, len(prmts_0))*(1 + pts_prct)
+
+    if fixed_bound is not None:
+        prmts_fine = prmts_0.reshape(1, len(prmts_0)) + fixed_bound*(jrandom.uniform(subkey, shape=(N_pts, len(prmts_0))) - 0.5)*2
+    else:
+        pts_prct = prct_bound*(jrandom.uniform(subkey, shape=(N_pts, len(prmts_0))) - 0.5)*2
+        prmts_fine = prmts_0.reshape(1, len(prmts_0))*(1 + pts_prct)
 
     for F in Fs:
         out = []

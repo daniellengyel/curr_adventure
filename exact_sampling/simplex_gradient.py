@@ -18,7 +18,7 @@ def simplex_gradient(F, x_0, S, jrandom_key_f):
     return SS_inv.dot(S.dot(FS - F_x_0)), num_func_calls, F_x_0, FS, S
 
 
-def loss_getter(dim, D, sig, coeff=0.1):
+def loss_getter(dim, D, sig):
     def helper(X):
         S = X.reshape(dim, dim).T
         
@@ -29,5 +29,5 @@ def loss_getter(dim, D, sig, coeff=0.1):
         third_term = S_inv.T @ jnp.ones(dim)
         third_term = jnp.linalg.norm(third_term)**2
         
-        return 1/4 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term) + coeff*jnp.linalg.norm(S, ord="fro")**4
+        return 1/4 * jnp.linalg.norm(first_term)**2 + sig**2 * (second_term + third_term)
     return helper

@@ -308,3 +308,98 @@ class Monod():
     
     
     
+class Cancer():
+    def __init__(self, N0_init, N1_init, N2_init, dt, final_T, sig=0, noise_type="gaussian", output_var="N0"):
+        self.N0_init = N0_init
+        self.N1_init = N1_init
+        self.N2_init = N2_init
+        self.dt = dt
+        self.final_T = final_T
+        self.sig = sig
+        self.noise_type = noise_type
+        
+        self.store = {}
+        self.output_var = output_var
+    
+    
+    def f(self, X, jrandom_key=None):
+        # X = X @ jnp.linalg.inv(self.normalize_const_diag)
+        X = tuple([float(c) for c in X])
+        if X in self.store:
+            out_all = self.store[X]
+        else:
+            out_all = self._f(X)
+            self.store[X] = out_all
+
+        if self.output_var == "N0":
+            out = out_all[0]
+            # sig_use = self.sig * self.S_init
+        elif self.output_var == "N1":
+            out = out_all[1]
+            # sig_use = self.sig * self.N_init
+        else:
+            out = out_all[2]
+            # sig_use = self.sig * self.I_init
+
+        sig_use = self.sig
+
+        if jrandom_key is not None:
+            if self.noise_type == "uniform":
+                eps = sig_use * jnp.sqrt(3)
+                return out + 2 * eps * jrandom.uniform(jrandom_key) - eps
+            else:
+                return out + sig_use * jrandom.normal(jrandom_key) 
+        return out
+    
+    
+    @partial(jit, static_argnums=(0,))
+    def _f(self, X):
+        a1, a2, a3, b1, b2, b3, gamma, k0, m0, k1, m1 = X
+
+        dt = self.dt
+        num_steps = int(self.final_T/dt + 0.5)
+        
+        N0, N1, N2 = self.N0_init, self.N1_init, self.N2_init
+
+        def body_fun(i, val):
+            N0, N1, N2 = val
+            
+            N0_delta = (a3 - a1 - a2)*N0 - (k0*N0**2)/(1 + m0 * N0)
+            N1_delta = (b3 - b1 - b2)*N1 + a2*N0 - (k1 * N1**2)/(1 + m1*N1) + (k0 * N0**2)/(1 + m0 * N0)
+            N2_delta = -gamma*N2 + b2*N1 + (k1 * N1**2)/(1 + m1 * N1)
+
+            N0 = N0 + dt*N0_delta
+            N1 = N1 + dt*N1_delta
+            N2 = N2 + dt*N2_delta
+            return [N0, N1, N2]
+
+        out = [N0, N1, N2]
+        out = fori_loop(1, num_steps, body_fun, out)
+        return out
+
+    
+    def get_full_path(self, X):
+        a1, a2, a3, b1, b2, b3, gamma, k0, m0, k1, m1 = X
+
+        dt = self.dt
+        num_steps = int(self.final_T/dt + 0.5)
+        
+        N0, N1, N2 = self.N0_init, self.N1_init, self.N2_init
+
+        res = [[N0, N1, N2]]
+        
+        for _ in range(num_steps):
+            
+            N0_delta = (a3 - a1 - a2)*N0 - (k0*N0**2)/(1 + m0 * N0)
+            N1_delta = (b3 - b1 - b2)*N1 + a2*N0 - (k1 * N1**2)/(1 + m1*N1) + (k0 * N0**2)/(1 + m0 * N0)
+            N2_delta = -gamma*N2 + b2*N1 + (k1 * N1**2)/(1 + m1 * N1)
+
+            N0 = N0 + dt*N0_delta
+            N1 = N1 + dt*N1_delta
+            N2 = N2 + dt*N2_delta
+            res.append([N0, N1, N2])
+
+        return np.array(res)
+    
+    
+    

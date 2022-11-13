@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
+from jax import jit
 
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -11,6 +12,7 @@ def lmbda_loss(lmbdas, D_diag, sig, l_max_idx):
     a = D_diag @ lmbdas / len(lmbdas)
     return 1/4 * a**2 * dim / lmbdas[l_max_idx] + sig**2 * dim/lmbdas[l_max_idx] + sig**2 * jnp.sum(1/lmbdas)
 
+@jit
 def lambda_no_max_h(D_diag, sig):
     dim = len(D_diag)
     D_diag = jnp.abs(D_diag)
@@ -21,8 +23,8 @@ def lambda_no_max_h(D_diag, sig):
     a = jnp.sqrt(2 * numerator/(dim * D_min))
     l = (2 * (1 + dim) * D_min * sig**2 + numerator)/(D_min**2 * a)
 
-    lmbdas = [(sig * jnp.sqrt(2*l/(D_diag[i] * a))) for i in range(len(D_diag))]
-    lmbdas[jnp.argmin(jnp.abs(D_diag))] = l
+    lmbdas = sig * jnp.sqrt(2*l/(D_diag * a))
+    lmbdas = lmbdas.at[jnp.argmin(jnp.abs(D_diag))].set(l)
     
     return jnp.array(lmbdas)
 
@@ -97,7 +99,7 @@ def lambda_coeff_zero_set_max_lambda(D_diag, sig, l_max):
 
 def generate_sing_vals_V(D_diag, sig, max_h):
     dim = len(D_diag)
-    sig = max(sig, 1e-4) # machine precision roughly
+    sig = max(sig, 1e-14) # machine precision roughly
 
     lmbda = lambda_coeff_zero_set_max_lambda(D_diag, sig, max_h**2)
     # print(lmbda)

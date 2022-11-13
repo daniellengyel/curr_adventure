@@ -18,6 +18,10 @@ def get_S_pow_index_sets(D_diag,):
     dim = len(D_diag)
     binary_dim = (bin(dim)[2:])[::-1]
     res = {}
+    if sum(int(c) for c in binary_dim) == 1:
+        res[len(binary_dim) - 1] = jnp.array(range(dim))
+        return res
+
     for i in range(len(binary_dim)):
         if binary_dim[i] == "1":
             res[i] = []
@@ -49,7 +53,7 @@ def get_S_pow_index_sets(D_diag,):
 
         curr_n -= 1
         curr_n = curr_n % upper_n
-
+    # print(res)
     return res
 
 def generate_all_pow_U(n):
@@ -69,6 +73,8 @@ def permute_rows(M, i, j):
     return M
 
 def create_approx_S(H, sig, max_h):
+    start_time = time.time()
+
     dim = H.shape[0] 
 
     H = (H + H.T) / 2. # to combat numerical inaccuracies. 
@@ -78,20 +84,25 @@ def create_approx_S(H, sig, max_h):
 
     D_diag = jnp.diag(D)
 
+    other_time = time.time()
     S_pow_index_set = get_S_pow_index_sets(D_diag)
     all_pow_U = generate_all_pow_U(max(S_pow_index_set.keys()))
     S = np.zeros(shape=(dim, dim, ))
+    # print(time.time() - other_time)
     for i in range(len(all_pow_U)):
         if i in S_pow_index_set:
             curr_index_set = jnp.array(S_pow_index_set[i])
+            time_sing_vals = time.time()
             curr_sing_vals, _ = generate_sing_vals_V(D_diag[curr_index_set], sig, max_h)
             curr_U = permute_rows(np.array(all_pow_U[i]), 0, jnp.argmax(jnp.diag(curr_sing_vals)))
             curr_pow_S = np.array(curr_sing_vals @ curr_U)
             S[curr_index_set.reshape(-1, 1), curr_index_set] = curr_pow_S
+            # print(time.time() - time_sing_vals)
+
 
     S = jnp.array(S)
     S = U_D @ S
-
+    # print(time.time() - start_time)
     return S
 
 
