@@ -47,7 +47,7 @@ def mse_sensitivity(F_true, F_tilde, sig, pts, rbf_f, h_space, jrandom_key, num_
                 res_cfd[i][h_i].append(jnp.linalg.norm(grad_getter_cfd.grad(F_tilde, p, subkey, H=H)[0] - true_grad))
 
 
-    return res_fd, res_cfd, res_ours, res_rbf
+    return jnp.array(res_fd), jnp.array(res_cfd), jnp.array(res_ours), jnp.array(res_rbf)
         
 
 # Get all RBF
